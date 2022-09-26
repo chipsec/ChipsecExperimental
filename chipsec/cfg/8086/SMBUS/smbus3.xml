@@ -1,0 +1,193 @@
+<?xml version="1.0"?>
+<configuration>
+<!--
+CHIPSEC: Platform Security Assessment Framework
+Copyright (c) Intel Corporation
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; Version 2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+Contact information:
+chipsec@intel.com
+-->
+
+    <!-- #################################### -->
+    <!--                                      -->
+    <!-- Memory Mapped I/O spaces (MMIO BARs) -->
+    <!--                                      -->
+    <!-- #################################### -->
+    <mmio>
+        <bar name="SMBMBAR" register="SMBMBAR" base_field="BA" size="0x100" desc="SMBus Memory Base Address" />
+        <bar name="TCOBASE" register="TCOBASE" base_field="TCOBA" size="0x20" desc="TCO Base Address"/>
+    </mmio>
+
+    <!-- #################################### -->
+    <!--                                      -->
+    <!-- I/O spaces (I/O BARs)                -->
+    <!--                                      -->
+    <!-- #################################### -->
+    <io>
+        <bar name="SMBUS_BASE" register="SMB_BASE" base_field="Base" size="0x20" desc="SMBus Base Address"/>
+    </io>
+
+    <!-- #################################### -->
+    <!--                                      -->
+    <!-- Configuration registers              -->
+    <!--                                      -->
+    <!-- #################################### -->
+    <registers>
+        <register name="SMBUS_VID"  type="pcicfg" offset="0x00" size="2" desc="VID" />
+        <register name="SMBUS_DID"  type="pcicfg" offset="0x02" size="2" desc="DID" />
+        <register name="SMBUS_CMD"  type="pcicfg" offset="0x04" size="2" desc="CMD" />
+        <register name="SMBMBAR"    type="pcicfg" offset="0x10" size="8" desc="SMBus Base Address">
+            <field  name="BA"       bit="8" size="56"  desc="Base Address"/>
+            <field  name="PREF"     bit="3" size="1"   desc="Prefetchable"/>
+            <field  name="ADDRNG"   bit="1" size="2"   desc="Address Range"/>
+            <field  name="MSI"      bit="0" size="1"   desc="Memory Space Indicator"/>
+        </register>
+        <register name="SMB_BASE"   type="pcicfg" offset="0x20" size="4" desc="SMBus Base Address">
+            <field  name="Base"      bit="5" size="11"   desc="Base Address"/>
+        </register>
+        <register name="SMBUS_HCFG" type="pcicfg" offset="0x40" size="1" desc="Host Configuration">
+            <field name="HST_EN"     bit="0" size="1"/>
+            <field name="SMB_SMI_EN" bit="1" size="1"/>
+            <field name="I2C_EN"     bit="2" size="2"/>
+            <field name="SSRESET"    bit="3" size="1"/>
+            <field name="SPD_WD"     bit="4" size="1"/>
+        </register>
+        <register name="TCOBASE"    type="pcicfg" offset="0x50" size="4" desc="TCO Base Address">
+            <field name="TCOBA" bit="5" size="11" desc="TCO Base Address"/>
+        </register>
+        <register name="TCOCTL"     type="pcicfg" offset="0x54" size="4" desc="TCO Control">
+            <field name="TCO_BASE_EN"   bit="8" size="1" desc="TCO Base Enable"/>
+            <field name="TCO_BASE_LOCK" bit="0" size="1" desc="TCO Base Lock"/>
+        </register>
+        <!-- SMBUS BASE -->
+        <register name="SMBUS_HST_STS" type="iobar" bar="SMBUS_BASE" offset="0x00" size="1" desc="SMBus Host Status">
+            <field name="BUSY"         bit="0" size="1" desc="SMBus Busy" />
+            <field name="INTR"         bit="1" size="1" desc="Interrupt" />
+            <field name="DEV_ERR"      bit="2" size="1" desc="Device Error" />
+            <field name="BUS_ERR"      bit="3" size="1" desc="Bus Error" />
+            <field name="FAILED"       bit="4" size="1" desc="SMBus Error/Failed" />
+            <field name="SMBALERT_STS" bit="5" size="1" desc="SMBALERT# Signal Status" />
+            <field name="INUSE_STS"    bit="6" size="1" desc="InUse Semaphore Status" />
+            <field name="DS"           bit="7" size="1" desc="Done Status" />
+        </register>
+        <register name="SMBUS_HST_CNT" type="iobar" bar="SMBUS_BASE" offset="0x02" size="1" desc="SMBus Host Control">
+            <field name="INTREN"       bit="0" size="1" desc="Interrupt Enable" />
+            <field name="KILL"         bit="1" size="1" desc="Kill" />
+            <field name="SMB_CMD"      bit="2" size="3" desc="Command" />
+            <field name="LAST_BYTE"    bit="5" size="1" desc="Last Byte (for Block Read commands)" />
+            <field name="START"        bit="6" size="1" desc="Start/Trigger" />
+            <field name="PEC_EN"       bit="7" size="1" desc="Packet Error Checking Enable" />
+        </register>
+        <register name="SMBUS_HST_CMD" type="iobar" bar="SMBUS_BASE" offset="0x03" size="1" desc="SMBus Host Command">
+            <field name="DataOffset"   bit="0" size="8" desc="Command Data" />
+        </register>
+        <register name="SMBUS_HST_SLVA" type="iobar" bar="SMBUS_BASE" offset="0x04" size="1" desc="SMBus Host Slave Address">
+            <field name="RW"           bit="0" size="1" desc="Read/Write Command" />
+            <field name="Address"      bit="1" size="7" desc="Slave Address" />
+        </register>
+        <register name="SMBUS_HST_D0" type="iobar" bar="SMBUS_BASE" offset="0x05" size="1" desc="SMBus Host Data 0">
+            <field name="Data"         bit="0" size="8" desc="Data0/Count" />
+        </register>
+        <register name="SMBUS_HST_D1" type="iobar" bar="SMBUS_BASE" offset="0x06" size="1" desc="SMBus Host Data 1">
+            <field name="Data"         bit="0" size="8" desc="Data1" />
+        </register>
+        <register name="SMBUS_HST_BLOCK_DB" type="iobar" bar="SMBUS_BASE" offset="0x07" size="1" desc="SMBus Host Block Data">
+            <field name="BDTA"         bit="0" size="8" desc="Block Data" />
+        </register>
+        <register name="SMBUS_HST_PEC" type="iobar" bar="SMBUS_BASE" offset="0x08" size="1" desc="SMBus Host Packet Error Check Data">
+            <field name="PEC_Data"         bit="0" size="8" desc="PEC Data" />
+        </register>
+        <register name="SMBUS_HST_AUX_STS" type="iobar" bar="SMBUS_BASE" offset="0x0C" size="1" desc="SMBus Host Auxiliary Status">
+            <field name="CRCE"         bit="0" size="1" desc="CRC Error" />
+        </register>
+        <register name="SMBUS_HST_AUX_CTL" type="iobar" bar="SMBUS_BASE" offset="0x0D" size="1" desc="SMBus Host Auxiliary Control">
+            <field name="E32B"         bit="1" size="1" desc="Enable 32-byte Buffer" />
+            <field name="AAC"          bit="0" size="1" desc="Automatically Append CRC" />
+        </register>
+        <register name="SMBUS_HST_PIC_CTL" type="iobar" bar="SMBUS_BASE" offset="0x0F" size="1" desc="SMBus Host PIN Control">
+            <field name="SMBCLK_CTL"         bit="2" size="1" desc="SMBCLK_CTL" />
+            <field name="SMBDATA_CUR_STS"    bit="1" size="1" desc="SMBDATA_CUR_STS" />
+            <field name="SMBCLK_CUR_STS"     bit="0" size="1" desc="SMBCLK_CUR_STS" />
+        </register>
+
+        <!-- SMBUS BASE MMIO-->
+        <register name="SMBUS_HST_STS_MMIO" type="mmio" bar="SMBMBAR" offset="0x00" size="1" desc="SMBus Host Status">
+            <field name="BUSY"         bit="0" size="1" desc="SMBus Busy" />
+            <field name="INTR"         bit="1" size="1" desc="Interrupt" />
+            <field name="DEV_ERR"      bit="2" size="1" desc="Device Error" />
+            <field name="BUS_ERR"      bit="3" size="1" desc="Bus Error" />
+            <field name="FAILED"       bit="4" size="1" desc="SMBus Error/Failed" />
+            <field name="SMBALERT_STS" bit="5" size="1" desc="SMBALERT# Signal Status" />
+            <field name="INUSE_STS"    bit="6" size="1" desc="InUse Semaphore Status" />
+            <field name="DS"           bit="7" size="1" desc="Done Status" />
+        </register>
+        <register name="SMBUS_HST_CNT_MMIO" type="mmio" bar="SMBMBAR" offset="0x02" size="1" desc="SMBus Host Control">
+            <field name="INTREN"       bit="0" size="1" desc="Interrupt Enable" />
+            <field name="KILL"         bit="1" size="1" desc="Kill" />
+            <field name="SMB_CMD"      bit="2" size="3" desc="Command" />
+            <field name="LAST_BYTE"    bit="5" size="1" desc="Last Byte (for Block Read commands)" />
+            <field name="START"        bit="6" size="1" desc="Start/Trigger" />
+            <field name="PEC_EN"       bit="7" size="1" desc="Packet Error Checking Enable" />
+        </register>
+        <register name="SMBUS_HST_CMD_MMIO" type="mmio" bar="SMBMBAR" offset="0x03" size="1" desc="SMBus Host Command">
+            <field name="DataOffset"   bit="0" size="8" desc="Command Data" />
+        </register>
+        <register name="SMBUS_HST_SLVA_MMIO" type="mmio" bar="SMBMBAR" offset="0x04" size="1" desc="SMBus Host Slave Address">
+            <field name="RW"           bit="0" size="1" desc="Read/Write Command" />
+            <field name="Address"      bit="1" size="7" desc="Slave Address" />
+        </register>
+        <register name="SMBUS_HST_D0_MMIO" type="mmio" bar="SMBMBAR" offset="0x05" size="1" desc="SMBus Host Data 0">
+            <field name="Data"         bit="0" size="8" desc="Data0/Count" />
+        </register>
+        <register name="SMBUS_HST_D1_MMIO" type="mmio" bar="SMBMBAR" offset="0x06" size="1" desc="SMBus Host Data 1">
+            <field name="Data"         bit="0" size="8" desc="Data1" />
+        </register>
+        <register name="SMBUS_HST_BLOCK_DB_MMIO" type="mmio" bar="SMBMBAR" offset="0x07" size="1" desc="SMBus Host Block Data">
+            <field name="BDTA"         bit="0" size="8" desc="Block Data" />
+        </register>
+        <register name="SMBUS_HST_PEC_MMIO" type="mmio" bar="SMBMBAR" offset="0x08" size="1" desc="SMBus Host Packet Error Check Data">
+            <field name="PEC_Data"         bit="0" size="8" desc="PEC Data" />
+        </register>
+        <register name="SMBUS_HST_AUX_STS_MMIO" type="mmio" bar="SMBMBAR" offset="0x0C" size="1" desc="SMBus Host Auxiliary Status">
+            <field name="CRCE"         bit="0" size="1" desc="CRC Error" />
+        </register>
+        <register name="SMBUS_HST_AUX_CTL_MMIO" type="mmio" bar="SMBMBAR" offset="0x0D" size="1" desc="SMBus Host Auxiliary Control">
+            <field name="E32B"         bit="1" size="1" desc="Enable 32-byte Buffer" />
+            <field name="AAC"          bit="0" size="1" desc="Automatically Append CRC" />
+        </register>
+        <register name="SMBUS_HST_PIC_CTL_MMIO" type="mmio" bar="SMBMBAR" offset="0x0F" size="1" desc="SMBus Host PIN Control">
+            <field name="SMBCLK_CTL"         bit="2" size="1" desc="SMBCLK_CTL" />
+            <field name="SMBDATA_CUR_STS"    bit="1" size="1" desc="SMBDATA_CUR_STS" />
+            <field name="SMBCLK_CUR_STS"     bit="0" size="1" desc="SMBCLK_CUR_STS" />
+        </register>
+
+        <!-- PCH TCOBASE (SMBus TCO) I/O registers -->
+        <register name="TCO1_CNT" type="iobar" bar="TCOBASE" offset="0x8" size="2" desc="TCO1 Control">
+            <field name="TCO_LOCK" bit="12" size="1" desc="TCO Lock"/>
+        </register>
+
+    </registers>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- 'Controls'                           -->
+  <!--                                      -->
+  <!-- #################################### -->
+    <controls>
+        <control name="TcoCtlLock" register="TCOCTL"  field="TCO_BASE_LOCK"  desc="TCO Base Lock"/>
+    </controls>
+
+</configuration>

@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<configuration>
+<!--
+CHIPSEC: Platform Security Assessment Framework
+Copyright (c) Intel Corporation
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; Version 2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+Contact information:
+chipsec@intel.com
+-->
+
+  <mmio>
+    <bar name="TMBAR" register="TMBAR" base_field="TMMBA" size="0x20000" desc="Thermal Controller"/>
+  </mmio>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Configuration registers              -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <registers>
+    <register name="DID" type="pcicfg" offset="2" size="2" desc="Device Identification Number" />
+
+    <register name="TMBAR" type="pcicfg" offset="0x10" size="8" desc="Thermal Controller Base Address">
+        <field name="TMMBA" bit="17" size="26" desc="Base Address" />
+        <field name="ADM" bit="4" size="13" desc="Address Mask (ADM)" />
+        <field name="PM" bit="3" size="1" desc="Prefetchable Memory" />
+        <field name="MT" bit="1" size="2" desc="Memory Type" />
+        <field name="MIOS" bit="0" size="1" desc="Memory I/O Space (MIOS)" />
+    </register>
+  </registers>
+
+</configuration>

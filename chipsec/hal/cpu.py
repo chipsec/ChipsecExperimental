@@ -1,0 +1,277 @@
+# CHIPSEC: Platform Security Assessment Framework
+# Copyright (c) 2010-2021, Intel Corporation
+
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; Version 2.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+# Contact information:
+# chipsec@intel.com
+
+"""
+CPU related functionality
+
+"""
+
+from chipsec.hal import hal_base
+from chipsec.hal import acpi
+from chipsec.lib.display_format import print_buffer_bytes
+
+DESCRIPTOR_TABLE_CODE_IDTR = 0
+DESCRIPTOR_TABLE_CODE_GDTR = 1
+DESCRIPTOR_TABLE_CODE_LDTR = 2
+
+
+########################################################################################################
+#
+# CORES HAL Component
+#
+########################################################################################################
+
+class CPU(hal_base.HALBase):
+    def __init__(self, cs):
+        super(CPU, self).__init__(cs)
+
+    def cpuid(self, eax, ecx):
+        self.logger.log_hal("[cpu] CPUID in : EAX=0x{:08X}, ECX=0x{:08X}".format(eax, ecx))
+        (eax, ebx, ecx, edx) = self.helper.cpuid(eax, ecx)
+        self.logger.log_hal("[cpu] CPUID out: EAX=0x{:08X}, EBX=0x{:08X}, ECX=0x{:08X}, EDX=0x{:08X}".format(eax, ebx, ecx, edx))
+        return (eax, ebx, ecx, edx)
+
+    # Using the CPUID we determine the number of logical processors per core
+    def get_number_logical_processor_per_core(self):
+        (eax, ebx, ecx, edx) = self.cpuid(0x0b, 0x0)
+        return ebx
+
+    # Using CPUID we can determine the number of logical processors per package
+    def get_number_logical_processor_per_package(self):
+        (eax, ebx, ecx, edx) = self.cpuid(0x0b, 0x1)
+        return ebx
+
+    # Using CPUID we can determine the number of physical processors per package
+    def get_number_physical_processor_per_package(self):
+        logical_processor_per_core = self.get_number_logical_processor_per_core()
+        logical_processor_per_package = self.get_number_logical_processor_per_package()
+        return (logical_processor_per_package // logical_processor_per_core)
+
+    # determine the cpu threads location within a package/core
+    def get_cpu_topology(self):
+        num_threads = self.helper.get_threads_count()
+        packages = {}
+        cores = {}
+        for thread in range(num_threads):
+            self.logger.log_hal("Setting affinity to: {:d}".format(thread))
+            self.helper.set_affinity(thread)
+            eax = 0xb   # cpuid leaf 0B contains x2apic info
+            ecx = 1     # ecx 1 will get us pkg_id in edx after shifting right by _eax
+            (_eax, _ebx, _ecx, _edx) = self.cs.cpu.cpuid(eax, ecx)
+            pkg_id = _edx >> (_eax & 0xf)
+            if pkg_id not in packages:
+                packages[pkg_id] = []
+            packages[pkg_id].append(thread)
+
+            ecx = 0     # ecx 0 will get us the core_id in edx after shifting right by _eax
+            (_eax, _ebx, _ecx, _edx) = self.cs.cpu.cpuid(eax, ecx)
+            core_id = _edx >> (_eax & 0xf)
+            if core_id not in cores:
+                cores[core_id] = []
+            cores[core_id].append(thread)
+            self.logger.log_hal("pkg id is {:x}".format(pkg_id))
+            self.logger.log_hal("core id is {:x}".format(core_id))
+        topology = {'packages': packages, 'cores': cores}
+        return topology
+
+    # Using CPUID we can determine if Hyper-Threading is enabled in the CPU
+    def is_HT_active(self):
+        logical_processor_per_core = self.get_number_logical_processor_per_core()
+        return (True if (logical_processor_per_core > 1) else False)
+
+    # determine number of logical processors in the core
+    def get_number_threads_from_APIC_table(self):
+        dACPIID = {}
+        _acpi = acpi.ACPI(self.cs)
+        apic_tables = _acpi.get_ACPI_table(acpi.ACPI_TABLE_SIG_APIC, False)
+        for (_, table_blob) in apic_tables:
+            apic = (acpi.ACPI_TABLES[acpi.ACPI_TABLE_SIG_APIC])()
+            apic.parse(table_blob)
+            for structure in apic.apic_structs:
+                if 0x00 == structure.Type:
+                    if structure.APICID not in dACPIID:
+                        if 1 == structure.Flags:
+                            dACPIID[structure.APICID] = structure.ACPIProcID
+        return len(dACPIID)
+
+    def set_affinity(self, thread):
+        return self.helper.set_affinity(thread)
+
+    def get_affinity(self):
+        return self.helper.get_affinity()
+
+    # determine number of physical sockets using the CPUID and APIC ACPI table
+    def get_number_sockets_from_APIC_table(self):
+        number_threads = self.get_number_threads_from_APIC_table()
+        logical_processor_per_package = self.get_number_logical_processor_per_package()
+        return (number_threads // logical_processor_per_package)
+
+    #
+    # Return SMRR MSR physical base and mask
+    #
+    def get_SMRR(self):
+        smrambase = self.cs.read_register_field('8086.MSR.IA32_SMRR_PHYSBASE', 'PhysBase', True, 0)[0]
+        smrrmask = self.cs.read_register_field('8086.MSR.IA32_SMRR_PHYSMASK', 'PhysMask', True, 0)[0]
+        return (smrambase.value, smrrmask.value)
+
+    #
+    # Return SMRAM region base, limit and size as defined by SMRR
+    #
+    def get_SMRR_SMRAM(self):
+        (smram_base, smrrmask) = self.get_SMRR()
+        smram_base &= smrrmask
+        smram_size = ((~smrrmask) & 0xFFFFFFFF) + 1
+        smram_limit = smram_base + smram_size - 1
+        return (smram_base, smram_limit, smram_size)
+
+    #
+    # Returns TSEG base, limit and size
+    #
+    def get_TSEG(self):
+        ret_tseg = set()
+        if self.cs.is_server():
+            tseg_bases = self.cs.read_register('8086.MemMap_VTd.TSEG_BASE')
+            tseg_limits = self.cs.read_register('8086.MemMap_VTd.TSEG_LIMIT')
+        else:
+            tseg_bases = self.cs.read_register('8086.HOSTCTL.TSEGMB')
+            tseg_limits = self.cs.read_register('8086.HOSTCTL.BGSM')
+        for index in range(len(tseg_bases)):
+            basedata = tseg_bases[index]
+            limitdata = tseg_limits[index]
+            if basedata.instance == limitdata.instance:
+                if self.cs.is_server():
+                    base = self.cs.get_register_field('8086.MemMap_VTd.TSEG', basedata.value, 'base', True)
+                    limit = self.cs.get_register_field('8086.MemMap_VTd.TSEG', limitdata.value, 'limit', True)
+                    limit += 0xFFFFF
+                else:
+                    base = self.cs.get_register_field('8086.HOSTCTL.TSEGMB', basedata.value, 'TSEGMB', True)
+                    limit = self.cs.get_register_field('8086.HOSTCTL.BGSM', limitdata.value, 'BGSM', True)
+                    limit -= 1
+                tseg_size = limit - base + 1
+                ret_tseg.add((base, limit, tseg_size))
+        return list(ret_tseg)
+
+    #
+    # Returns SMRAM base from either SMRR MSR or TSEG PCIe config register
+    #
+    def get_SMRAM(self):
+        smram_base = None
+        smram_limit = None
+        smram_size = 0
+        try:
+            if (self.check_SMRR_supported()):
+                (smram_base, smram_limit, smram_size) = self.get_SMRR_SMRAM()
+        except Exception:
+            pass
+
+        if smram_base is None:
+            try:
+                (smram_base, smram_limit, smram_size) = self.get_TSEG()[0]
+            except Exception:
+                pass
+        return (smram_base, smram_limit, smram_size)
+
+    #
+    # Check that SMRR is supported by CPU in IA32_MTRRCAP_MSR[SMRR]
+    #
+    def check_SMRR_supported(self):
+        mtrrcap_msr_reg = self.cs.read_register('8086.MSR.MTRRCAP', 0)[0]
+        if self.logger.HAL:
+            self.cs.print_register('8086.MSR.MTRRCAP', mtrrcap_msr_reg)
+        smrr = self.cs.get_register_field('8086.MSR.MTRRCAP', mtrrcap_msr_reg.value, 'SMRR')
+        return smrr == 1
+
+    def read_cr(self, cpu_thread_id, cr_number):
+        value = self.helper.read_cr(cpu_thread_id, cr_number)
+        self.logger.log_hal("[cpu{:d}] read CR{:d}: value = 0x{:08X}".format(cpu_thread_id, cr_number, value))
+        return value
+
+    def write_cr(self, cpu_thread_id, cr_number, value):
+        self.logger.log_hal("[cpu{:d}] write CR{:d}: value = 0x{:08X}".format(cpu_thread_id, cr_number, value))
+        status = self.helper.write_cr(cpu_thread_id, cr_number, value)
+        return status
+
+##########################################################################################################
+#
+# Get CPU Descriptor Table Registers (IDTR, GDTR, LDTR..)
+#
+##########################################################################################################
+
+    def get_Desc_Table_Register(self, cpu_thread_id, code):
+        return self.helper.get_descriptor_table(cpu_thread_id, code)
+
+    def get_IDTR(self, cpu_thread_id):
+        (limit, base, pa) = self.get_Desc_Table_Register(cpu_thread_id, DESCRIPTOR_TABLE_CODE_IDTR)
+        self.logger.log_hal("[cpu{:d}] IDTR Limit = 0x{:04X}, Base = 0x{:016X}, Physical Address = 0x{:016X}".format(cpu_thread_id, limit, base, pa))
+        return (limit, base, pa)
+
+    def get_GDTR(self, cpu_thread_id):
+        (limit, base, pa) = self.get_Desc_Table_Register(cpu_thread_id, DESCRIPTOR_TABLE_CODE_GDTR)
+        self.logger.log_hal("[cpu{:d}] GDTR Limit = 0x{:04X}, Base = 0x{:016X}, Physical Address = 0x{:016X}".format(cpu_thread_id, limit, base, pa))
+        return (limit, base, pa)
+
+    def get_LDTR(self, cpu_thread_id):
+        (limit, base, pa) = self.get_Desc_Table_Register(cpu_thread_id, DESCRIPTOR_TABLE_CODE_LDTR)
+        self.logger.log_hal("[cpu{:d}] LDTR Limit = 0x{:04X}, Base = 0x{:016X}, Physical Address = 0x{:016X}".format(cpu_thread_id, limit, base, pa))
+        return (limit, base, pa)
+
+##########################################################################################################
+#
+# Dump CPU Descriptor Tables (IDT, GDT, LDT..)
+#
+##########################################################################################################
+
+    def dump_Descriptor_Table(self, cpu_thread_id, code, num_entries=None):
+        (limit, base, pa) = self.helper.get_descriptor_table(cpu_thread_id, code)
+        dt = self.cs.mem.read_physical_mem(pa, limit + 1)
+        total_num = len(dt) // 16
+        if (total_num < num_entries) or (num_entries is None):
+            num_entries = total_num
+        self.logger.log('[cpu{:d}] Physical Address: 0x{:016X}'.format(cpu_thread_id, pa))
+        self.logger.log('[cpu{:d}] # of entries    : {:d}'.format(cpu_thread_id, total_num))
+        self.logger.log('[cpu{:d}] Contents ({:d} entries):'.format(cpu_thread_id, num_entries))
+        print_buffer_bytes(dt)
+        self.logger.log('--------------------------------------')
+        self.logger.log('#    segment:offset         attributes')
+        self.logger.log('--------------------------------------')
+        for i in range(0, num_entries):
+            offset = (dt[i * 16 + 11] << 56) | (dt[i * 16 + 10] << 48) | (dt[i * 16 + 9] << 40) | (dt[i * 16 + 8] << 32) | (dt[i * 16 + 7] << 24) | (dt[i * 16 + 6] << 16) | (dt[i * 16 + 1] << 8) | dt[i * 16 + 0]
+            segsel = (dt[i * 16 + 3] << 8) | dt[i * 16 + 2]
+            attr = (dt[i * 16 + 5] << 8) | dt[i * 16 + 4]
+            self.logger.log('{:03d}  {:04X}:{:016X}  0x{:04X}'.format(i, segsel, offset, attr))
+
+        return (pa, dt)
+
+    def IDT(self, cpu_thread_id, num_entries=None):
+        self.logger.log_hal('[cpu{:d}] IDT:'.format(cpu_thread_id))
+        return self.dump_Descriptor_Table(cpu_thread_id, DESCRIPTOR_TABLE_CODE_IDTR, num_entries)
+
+    def GDT(self, cpu_thread_id, num_entries=None):
+        self.logger.log('[cpu{:d}] GDT:'.format(cpu_thread_id))
+        return self.dump_Descriptor_Table(cpu_thread_id, DESCRIPTOR_TABLE_CODE_GDTR, num_entries)
+
+    def IDT_all(self, num_entries=None):
+        for tid in range(self.cs.msr.get_cpu_thread_count()):
+            self.IDT(tid, num_entries)
+            self.logger.log('')
+
+    def GDT_all(self, num_entries=None):
+        for tid in range(self.cs.msr.get_cpu_thread_count()):
+            self.GDT(tid, num_entries)
+            self.logger.log('')

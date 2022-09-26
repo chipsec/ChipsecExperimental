@@ -1,0 +1,34 @@
+This is an experimental version of chipsec demonstrating potential areas of improvement
+
+What Changed
+  - Redesigned Configuration Loading
+    - Uses pci enumeration and cpuid to identify matches within xml
+    - Added a parsing library for core and custom configuration
+    - Added a parent/child xml structure where a parent is the device identification and the child is the register configuration.
+      - Devices can be mapped to multiple register configuration files
+      - Multiple devices can be mapped to the same register configuration file
+    - Redesigned Configurations
+      - Removed instances of common.xml
+      - Scoping was added to registers
+        - A register is now defined by VID.DEVICE.REGISTERNAME
+        - A set_scope function was added to keep naming the same
+  - Integrated Bus support
+    - By default register functionality will return all instances unless specified
+    - The Register values returned are a list containing tuples of value and instance
+  - Improved device and address space identification
+    - Removed register conflicts due to duplicate names
+      - A duplicate name within the same device will still override
+    - An exception is thrown if a pci device is not valid or mmio/io space is 0
+  - util_cmd clean-up
+    - 90% of commands ported
+    - Some have improved funtionality
+  - Improved logging
+    - Logging works closer to python logging
+  - Decoupled Helper functionality
+    - No longer driver and native funtions
+    - Added ability to load appropriate helper within modules/commands
+  - General Code cleanup and improvements
+    - removed dead code
+    - cleaned up api's and interfaces for consistency
+
+

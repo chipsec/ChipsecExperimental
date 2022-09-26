@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<configuration platform="CFL">
+<!--
+XML configuration file for Coffee Lake
+
+* 8th Generation Intel(R) Processor Family for S-Processor Platforms
+  https://www.intel.com/content/www/us/en/processors/core/core-technical-resources.html
+-->
+<!--
+CHIPSEC: Platform Security Assessment Framework
+Copyright (c) Intel Corporation
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; Version 2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+Contact information:
+chipsec@intel.com
+-->
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Information                          -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <info family="core" detection_value="0x906EA, 0x906EB, 0x906EC">
+    <sku did="0x3E0F" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake S 2 Cores)" />
+    <sku did="0x3E1F" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (Coffeelake S 4 Cores)" />
+    <sku did="0x3EC2" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (Coffeelake S 6 Cores)" />
+    <sku did="0x3E30" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake S 8 Cores)" />
+    <sku did="0x3ECC" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake U 2 Cores)" />
+    <sku did="0x3ED0" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake U 4 Cores)" />
+    <sku did="0x3E10" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake H 4 Cores)" />
+    <sku did="0x3EC4" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake H 6 Cores)" />
+    <sku did="0x3E18" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake Workstation 4 Cores)" />
+    <sku did="0x3EC6" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake Workstation 6 Cores)" />
+    <sku did="0x3E31" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake Workstation 8 Cores)" />
+    <sku did="0x3E33" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake Server 4 Cores)" />
+    <sku did="0x3ECA" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake Server 6 Cores)" />
+    <sku did="0x3E32" name="CoffeeLake" code="CFL" longname="Desktop 8th Generation Core Processor (CoffeeLake Server 8 Cores)" />
+  </info>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Integrated devices                   -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <pci>
+    <device name="HOSTCTL" bus="0x0" dev="0x00" fun="0" config="HOSTCTL.hostctl0.xml"/>
+    <device name="HOSTCTL" bus="0x0" dev="0x00" fun="0" config="IOMMU.iommu.xml"/>
+    <device name="IGD"     bus="0x0" dev="0x02" fun="0" config="IGD.igd0.xml" />
+    <device name="MEI1"    bus="0x0" dev="0x16" fun="0" config="ME.mei0.xml" />
+  </pci>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- MSR                                  -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <msr>
+    <definition name="MSR" config="MSR.msr1.xml" />
+  </msr>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- I/O                                  -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <io>
+  </io>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Memory ranges                        -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <memory>
+    <range name="TPM" access="mmio" address="0xFED40000" size="0x10000" config="TPM.tpm12.xml" />
+  </memory>
+
+</configuration>

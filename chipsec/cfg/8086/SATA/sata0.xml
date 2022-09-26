@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<configuration>
+<!--
+CHIPSEC: Platform Security Assessment Framework
+Copyright (c) Intel Corporation
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; Version 2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+Contact information:
+chipsec@intel.com
+-->
+  <mmio>
+    <bar name="ABAR" register="ABAR" base_field="BA" size="0x1000" desc="SATA_ABAR" />
+  </mmio>
+    <registers>
+        <!-- SATA Registers -->
+        <register name="ABAR"   type="pcicfg" offset="0x24" size="4" desc="AHCI Base Address">
+            <field name="BA" bit="19" size="13" desc="Base Address"/>
+        </register>
+        <register name="SATAGC" type="pcicfg" offset="0x9C" size="4" desc="SATA General Configuration">
+            <field name="ASSEL" bit="0" size="3" desc="ABAR Size Select"/>
+        </register>
+    </registers>
+
+</configuration>

@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<configuration platform="PCH_C620">
+<!--
+XML configuration file for
+
+* Intel(R) C620 Series Chipset Family Platform Controller Hub
+  https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/c620-series-chipset-datasheet.pdf
+-->
+<!--
+CHIPSEC: Platform Security Assessment Framework
+Copyright (c) Intel Corporation
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; Version 2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+Contact information:
+chipsec@intel.com
+-->
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Information                          -->
+  <!--                                      -->
+  <!-- #################################### -->
+    <info>
+        <sku did="0xA1C1" name="C621" code="PCH_C620" longname="Intel C621 (C620 series) PCH" />
+        <sku did="0xA1C2" name="C622" code="PCH_C620" longname="Intel C622 (C620 series) PCH" />
+        <sku did="0xA1C3" name="C624" code="PCH_C620" longname="Intel C624 (C620 series) PCH" />
+        <sku did="0xA1C4" name="C625" code="PCH_C620" longname="Intel C625 (C620 series) PCH" />
+        <sku did="0xA1C5" name="C626" code="PCH_C620" longname="Intel C626 (C620 series) PCH" />
+        <sku did="0xA1C6" name="C627" code="PCH_C620" longname="Intel C627 (C620 series) PCH" />
+        <sku did="0xA1C7" name="C628" code="PCH_C620" longname="Intel C628 (C620 series) PCH" />
+        <sku did="0xA1CA" name="C629" code="PCH_C620" longname="Intel C629 (C620 series) PCH" />
+        <sku did="0xA242" name="C624" code="PCH_C620" longname="Intel C624 (C620 series) PCH" />
+        <sku did="0xA243" name="C627" code="PCH_C620" longname="Intel C627 (C620 series) PCH" />
+        <sku did="0xA244" name="C621" code="PCH_C620" longname="Intel C621 (C620 series) PCH" />
+        <sku did="0xA245" name="C627" code="PCH_C620" longname="Intel C627 (C620 series) PCH" />
+        <sku did="0xA246" name="C628" code="PCH_C620" longname="Intel C628 (C620 series) PCH" />
+    </info>
+
+    <pci>
+        <device name="SATA"  bus="0" dev="0x17" fun="0" did="0xA182,0xA186,0xA202,0xA206,0x2822,0x2826" config="SATA.sata0.xml" />
+        <device name="SSATA"   bus="0" dev="0x17" fun="5" did="0xA1D2,0xA252" config="SATA.sata0.xml" />
+        <device name="P2SBC" bus="0" dev="0x1F" fun="1" did="0xA220,0xA1A0" config="P2SB.p2sbc3.xml" />
+        <device name="PMC"   bus="0" dev="0x1F" fun="2" did="0xA221,0xA1A1" config="PMC.pmc7.xml"/>
+        <device name="SMBUS" bus="0" dev="0x1F" fun="4" did="0xA223,0xA1A3" config="SMBUS.smbus1.xml"/>
+        <device name="SPI"   bus="0" dev="0x1F" fun="5" did="0xA224,0xA1A4" config="SPI.spi2.xml" />
+        <device name="SPI"   bus="0" dev="0x1F" fun="5" did="0xA224,0xA1A4" config="SPI.descriptor2.xml" />
+        <device name="SPI"   bus="0" dev="0x1F" fun="5" config="SPI.sfdp.xml" />
+    </pci>
+
+    <io>
+        <definition name="IO" config="IO.io0.xml" />
+    </io>
+
+    <mm_msgbus>
+        <device name="DCI" port="0xB8" config="DCI.dci0.xml" />
+        <device name="RTC" port="0xC3" config="RTC.rtc0.xml" />
+    </mm_msgbus>
+
+  </configuration>

@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<configuration>
+<!--
+CHIPSEC: Platform Security Assessment Framework
+Copyright (c) Intel Corporation
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; Version 2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+Contact information:
+chipsec@intel.com
+-->
+
+  <mmio>
+    <bar name="GTTMMADR" register="GTTMMADR" base_field="MBA" size="0x1000000" desc="Graphics Translation Table Range"/>
+  </mmio>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Configuration registers              -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <registers>
+    <register name="DID" type="pcicfg" device="IGD" offset="2" size="2" desc="Device Identification Number" />
+
+    <register name="GTTMMADR" type="pcicfg" offset="0x10" size="8" desc="Graphics Translation Table Memory Mapped Range Address">
+        <field name="MBA" bit="15" size="40" desc="Memory Base Address (MBA_0)" />
+        <field name="ADM" bit="4" size="20" desc="Address Mask (ADM)" />
+        <field name="PREFMEM" bit="3" size="1" desc="Prefetchable Memory (PREFMEM)" />
+        <field name="MEMTYP" bit="1" size="2" desc="Memory Type (MEMTYP)" />
+        <field name="MIOS" bit="0" size="1" desc="Memory I/O Space (MIOS)" />
+    </register>
+
+    <!-- GFx MMIO registers -->
+    <register name="PCBR" type="mmio" bar="GTTMMADR" offset="0x182120" desc="PCBR">
+        <field name="PCBR_LOCK" bit="0" size="1"/>
+    </register>
+
+  </registers>
+
+</configuration>

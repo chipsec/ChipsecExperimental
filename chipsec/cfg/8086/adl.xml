@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<configuration platform="ADL" req_pch="True">
+<!--
+CHIPSEC: Platform Security Assessment Framework
+Copyright (c) Intel Corporation
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; Version 2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+Contact information:
+chipsec@intel.com
+-->
+
+<!--
+XML configuration file for AlderLake based platforms
+
+http://www.intel.com/content/www/us/en/processors/core/core-technical-resources.html
+https://cdrdv2.intel.com/v1/dl/getContent/655259
+
+* 12th Generation Intel(R) Core Processor Family Datasheet
+-->
+
+<!-- #################################### -->
+<!--                                      -->
+<!-- Information                          -->
+<!--                                      -->
+<!-- #################################### -->
+<info family="core">
+    <sku did="0x4601" name="AlderLake" code="ADL" longname="ADL-P/U15 2+8"/>
+    <sku did="0x4602" name="AlderLake" code="ADL" longname="ADL-U9 2+8"/>
+    <sku did="0x4609" name="AlderLake" code="ADL" longname="ADL-U15 2+4"/>
+    <sku did="0x460A" name="AlderLake" code="ADL" longname="ADL-U9 2+4"/>
+    <sku did="0x4610" name="AlderLake" code="ADL" longname="ADL-S LGA 2+0"/>
+    <sku did="0x4619" name="AlderLake" code="ADL" longname="ADL-U15 1+4"/>
+    <sku did="0x461A" name="AlderLake" code="ADL" longname="ADL-U9 1+4"/>
+    <sku did="0x4621" name="AlderLake" code="ADL" longname="ADL-P/H 4+8"/>
+    <sku did="0x4629" name="AlderLake" code="ADL" longname="ADL-H 4+4"/>
+    <sku did="0x4630" name="AlderLake" code="ADL" longname="ADL-S LGA 4+0"/>
+    <sku did="0x4641" name="AlderLake" code="ADL" longname="ADL-P/H 6+8"/>
+    <sku did="0x4648" name="AlderLake" code="ADL" longname="ADL-S LGA 6+4"/>
+    <sku did="0x4649" name="AlderLake" code="ADL" longname="ADL-H 6+4"/>
+    <sku did="0x4650" name="AlderLake" code="ADL" longname="ADL-S LGA 6+0"/>
+    <sku did="0x4660" name="AlderLake" code="ADL" longname="ADL-S LGA 8+8"/>
+    <sku did="0x4668" name="AlderLake" code="ADL" longname="ADL-S LGA 8+4"/>
+</info>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Integrated devices                   -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <pci>
+    <device name="HOSTCTL" bus="0x0" dev="0x00" fun="0" did="0x4601, 0x4602, 0x4609-0x4610, 0x4619, 0x461A, 0x4621, 0x4629, 0x4630, 0x4641, 0x4648-0x4650, 0x4660, 0x4668" config="HOSTCTL.hostctl3.xml, IOMMU.iommu.xml"/>
+    <device name="IGD"     bus="0x0" dev="0x02" fun="0" config="IGD.igd0.xml"/>
+    <device name="MEI1"    bus="0x0" dev="0x16" fun="0" config="ME.mei0.xml" />
+    <device name="DTT"     bus="0x0" dev="0x04" fun="0" did="0x461D" config="DTT.dtt0.xml" />
+  </pci>
+
+  <msr>
+    <definition name="MSR" config="MSR.msr2.xml" />
+  </msr>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Memory ranges                        -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <memory>
+    <range name="TPM" access="mmio" address="0xFED40000" size="0x10000" config="TPM.tpm12.xml" />
+    <range name="LT_PUBLIC_SPACE" access="mmio" address="0xFED30000" size="0x10000" config="TPM.txt.xml" />
+  </memory>
+
+</configuration>
