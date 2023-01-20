@@ -34,7 +34,11 @@ import chipsec.file
 from chipsec.logger import logger
 from chipsec.exceptions import UnimplementedAPIError, OsHelperError
 
-avail_helpers = []
+import importlib
+import platform
+from chipsec.file import get_main_dir
+from chipsec.helper.basehelper import Helper
+
 
 ZIP_HELPER_RE = re.compile("^chipsec\/helper\/\w+\/\w+\.pyc$", re.IGNORECASE)
 
@@ -51,8 +55,6 @@ def get_tools_path() -> str:
     return os.path.normpath(os.path.join(chipsec.file.get_main_dir(), chipsec.file.TOOLS_DIR))
 
 
-import chipsec.helper.helpers as chiphelpers
-
 # OS Helper
 #
 # Abstracts support for various OS/environments, wrapper around platform specific code that invokes kernel driver
@@ -60,9 +62,11 @@ import chipsec.helper.helpers as chiphelpers
 
 class OsHelper:
     def __init__(self):
-        self.helper = None
+        self.helper = Helper()
+        self.avail_helpers = {}
         self.loadHelpers()
         self.filecmds = None
+        self.getDefaultHelper()
         if (not self.helper):
             import platform
             os_system = platform.system()
@@ -80,15 +84,44 @@ class OsHelper:
             self.os_machine = self.helper.os_machine
 
     def loadHelpers(self) -> None:
-        for helper in avail_helpers:
+        helper_dir = os.path.join(get_main_dir(), "chipsec", "helper")
+        helpers = [os.path.basename(f) for f in os.scandir(helper_dir)
+                   if f.is_dir() and not os.path.basename(f).startswith("__")]
+
+        for helper in helpers:
+            helper_path = ''
             try:
-                self.helper = getattr(chiphelpers, helper).get_helper()
-                break
-            except OsHelperError:
-                raise
-            except:
-                if logger().DEBUG:
-                    logger().log("Unable to load helper: {}".format(helper))
+                helper_path = f'chipsec.helper.{helper}.{helper}helper'
+                hlpr = importlib.import_module(helper_path)
+                self.avail_helpers["{}helper".format(helper)] = hlpr
+            except ImportError as msg:
+                logger().log_debug(f'unable to load {helper_path} {msg}')
+
+    def getHelper(self, name):
+        ret = None
+        if name in self.avail_helpers:
+            ret = self.avail_helpers[name].get_helper()
+        return ret
+
+    def getAvailableHelpers(self):
+        return self.avail_helpers.keys()
+
+    def getBaseHelper(self):
+        return Helper()
+
+    def getDefaultHelper(self):
+        ret = None
+        if self.is_linux():
+            ret = self.getHelper('linuxhelper')
+            if ret is None:
+                ret = self.getHelper('linuxnativehelper')
+        if self.is_windows():
+            ret = self.getHelper('windowshelper')
+            if ret is None:
+                ret = self.getHelper('windowsnativehelper')
+        if ret is None:
+            ret = self.getBaseHelper()
+        return ret
 
     def start(self, start_driver: bool, driver_exists: Optional[bool] = None, to_file: Optional[bool] = None, from_file: bool = False) -> None:
         if to_file is not None:
@@ -136,23 +169,23 @@ class OsHelper:
         return self.helper.use_native_api()
 
     def is_dal(self) -> bool:
-        return ('itpii' in sys.modules)
+        return 'itpii' in sys.modules
 
     def is_efi(self) -> bool:
-        return self.os_system.lower().startswith('efi') or self.os_system.lower().startswith('uefi')
+        return platform.system().lower().startswith('efi') or platform.system().lower().startswith('uefi')
 
     def is_linux(self) -> bool:
-        return ('linux' == self.os_system.lower())
+        return 'linux' == platform.system().lower()
 
     def is_windows(self) -> bool:
-        return ('windows' == self.os_system.lower())
+        return 'windows' == platform.system().lower()
 
     def is_win8_or_greater(self) -> bool:
         win8_or_greater = self.is_windows() and (self.os_release.startswith('8') or ('2008Server' in self.os_release) or ('2012Server' in self.os_release))
         return win8_or_greater
 
     def is_macos(self) -> bool:
-        return ('darwin' == self.os_system.lower())
+        return 'darwin' == platform.system().lower()
 
     #################################################################################################
     # Actual OS helper functionality accessible to HAL components
@@ -554,8 +587,7 @@ def helper():
         try:
             _helper = OsHelper()
         except BaseException as msg:
-            if logger().DEBUG:
-                logger().log_error(str(msg))
-                logger().log_bad(traceback.format_exc())
+            logger().log_debug(str(msg))
+            logger().log_debug(traceback.format_exc())
             raise
     return _helper

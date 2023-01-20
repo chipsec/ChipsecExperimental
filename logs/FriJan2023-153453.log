@@ -1,0 +1,12 @@
+[*] [DEBUG] unable to load chipsec.helper.dal.dalhelper No module named 'itpii'
+[*] [DEBUG] unable to load chipsec.helper.efi.efihelper No module named 'edk2'
+[*] [DEBUG] unable to load chipsec.helper.win.winhelper No module named 'chipsec.helper.win.winhelper'
+################################################################
+##                                                            ##
+##  CHIPSEC: Platform Hardware Security Assessment Framework  ##
+##                                                            ##
+################################################################
+[CHIPSEC] Version  : 1.10.0
+[CHIPSEC] Arguments: -n platform
+
+ERROR: Message: ""
