@@ -44,7 +44,8 @@ def _get_range_data(xml_node, attr):
 def _config_convert_data(xml_node, did_is_range=False):
     INT_KEYS = ['dev', 'fun', 'vid', 'did', 'rid', 'offset',
                 'bit', 'size', 'port', 'msr', 'value', 'address',
-                'fixed_address', 'base_align', 'align_bits', 'mask']
+                'fixed_address', 'base_align', 'align_bits', 'mask',
+                'reg_align', 'limit_align', 'regh_align']
     BOOL_KEYS = ['req_pch']
     INT_LIST_KEYS = ['bus']
     STR_LIST_KEYS = ['config']
@@ -251,6 +252,11 @@ class CoreConfig(BaseConfigParser):
 
             if 'base_reg' in attrs:
                 attrs['base_reg'] = self._make_reg_name(stage_data, attrs['base_reg'])
+
+            if 'mmio_base' in attrs:
+                attrs['mmio_base'] = self._make_reg_name(stage_data, attrs['mmio_base'])
+            if 'limit_register' in attrs:
+                attrs['limit_register'] = self._make_reg_name(stage_data, attrs['limit_register'])
 
             # Update storage location with new data
             if node_name in flat_storage:
