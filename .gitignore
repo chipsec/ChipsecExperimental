@@ -1,0 +1,37 @@
+*.o
+*.d
+*.pyc
+*.obj
+*.pdb
+*.lib
+*.log
+chipsec.egg-info
+dist
+build
+
+# Linux driver
+chipsec/helper/linux/*.ko
+drivers/linux/**/.*.cmd
+drivers/linux/*.ko
+drivers/linux/*.mod
+drivers/linux/*.mod.c
+drivers/linux/Module.symvers
+drivers/linux/modules.order
+
+# Windows driver
+.vs/
+chipsec/helper/win/win7_amd64/
+chipsec/helper/win/win7_x86/
+drivers/win7/Debug/
+drivers/win7/Release/
+drivers/win7/x64/
+
+# Compression tools
+chipsec_tools/compression/Bin/
+
+# py2exe
+bin/
+scripts/bdist.win-amd64/
+
+# Visual Studio Code
+.vscode
