@@ -50,5 +50,5 @@ def chipsec_properties():
     logger().log("[CHIPSEC] BIOS Version : {}".format(chipset.helper.get_bios_version()))
     logger().log("[CHIPSEC] Helper       : {} ({})".format(*chipset.helper.get_info()))
     chipset.Cfg.print_platform_info()
-    if not chipset.is_atom():
+    if chipset.Cfg.req_pch:
         chipset.Cfg.print_pch_info()

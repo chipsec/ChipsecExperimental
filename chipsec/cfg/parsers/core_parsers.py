@@ -249,6 +249,9 @@ class CoreConfig(BaseConfigParser):
             else:
                 attrs['register'] = self._make_reg_name(stage_data, attrs['register'])
 
+            if 'base_reg' in attrs:
+                attrs['base_reg'] = self._make_reg_name(stage_data, attrs['base_reg'])
+
             # Update storage location with new data
             if node_name in flat_storage:
                 dest[attrs['name']] = attrs

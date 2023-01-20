@@ -176,7 +176,7 @@ class MMIO(hal_base.HALBase):
             base += start
             limit += ((0x1 << bar['align_bits']) - 1)
             limit += start
-            size = limit - base
+            size = limit - base + 1
         else:
             size = bar['size'] if ('size' in bar) else DEFAULT_MMIO_BAR_SIZE
         self.logger.log_hal('[mmio] {}: 0x{:016X} (size = 0x{:X})'.format(bar_name, base, size))
@@ -210,6 +210,21 @@ class MMIO(hal_base.HALBase):
         return is_enabled
 
     #
+    # Check if MMIO range is valid by MMIO BAR name
+    #
+    def is_MMIO_BAR_valid(self, bar_name, bus=None):
+        if not self.is_MMIO_BAR_defined(bar_name):
+            return False
+        bar = self.cs.Cfg.get_mmio_def(bar_name)
+        is_valid = True
+        if 'register' in bar:
+            if 'valid' in bar:
+                bar_en_field = bar['valid']
+                bar_reg = bar['register']
+                is_valid = (1 == self.cs.read_register_field(bar_reg, bar_en_field, instance=bus)[0].value)
+        return is_valid
+
+    #
     # Check if MMIO range is programmed by MMIO BAR name
     #
     def is_MMIO_BAR_programmed(self, bar_name, bus):
@@ -226,9 +241,9 @@ class MMIO(hal_base.HALBase):
 
     def list_MMIO_BARs(self):
         self.logger.log('')
-        self.logger.log('------------------------------------------------------------------------------------------------')
-        self.logger.log(' MMIO Range   | BUS |      BAR Register        | Base             | Size     | En? | Description')
-        self.logger.log('------------------------------------------------------------------------------------------------')
+        self.logger.log('--------------------------------------------------------------------------------------------------------')
+        self.logger.log(' {:35} | {:3} | {:16} | {:8} | {:3} | {:5} | {}'.format('MMIO Range', 'BUS', 'Base', 'Size', 'En?', 'Valid', 'Description'))
+        self.logger.log('--------------------------------------------------------------------------------------------------------')
         for vid in self.cs.Cfg.MMIO_BARS:
             for dev in self.cs.Cfg.MMIO_BARS[vid]:
                 for bar_name in self.cs.Cfg.MMIO_BARS[vid][dev]:
@@ -247,10 +262,7 @@ class MMIO(hal_base.HALBase):
                             self.logger.log_hal("Unable to find MMIO BAR {}".format(_bar))
                             continue
                         _en = self.is_MMIO_BAR_enabled(_bar_name)
+                        _valid = self.is_MMIO_BAR_valid(_bar_name)
 
-                        if 'register' in _bar:
-                            _s = _bar['register']
-                            if 'offset' in _bar:
-                                _s += (' + 0x{:X}'.format(_bar['offset']))
-                        self.logger.log(' {:12} |  {:02X} | {:24} | {:016X} | {:08X} | {:d}   | {}'.format(
-                            bar_name, bus or 0, _s, _base, _size, _en, _bar['desc']))
+                        self.logger.log(' {:35} |  {:02X} | {:016X} | {:08X} | {:d}   |   {:d}   | {}'.format(
+                            _bar_name, bus or 0, _base, _size, _en, _valid, _bar['desc']))

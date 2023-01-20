@@ -29,6 +29,7 @@ usage:
     >>> read_mmcfg_reg(cs, 0, 0, 0, 0x10, 4, 0xFFFFFFFF)
 """
 
+from chipsec.exceptions import CSReadError
 from chipsec.hal import hal_base
 
 PCI_PCIEXBAR_REG_LENGTH_256MB = 0x0
@@ -45,6 +46,7 @@ class MMCFG(hal_base.HALBase):
 
     def __init__(self, cs):
         super(MMCFG, self).__init__(cs)
+        self.base_list = []
         if self.cs.is_server():
             self.PCIEXBAR = "8086.MemMap_VTd.PCIEXBAR"
             self.MmioCfgBaseAddr = "8086.MemMap_VTd.MmioCfgBaseAddr"
@@ -58,8 +60,25 @@ class MMCFG(hal_base.HALBase):
     # Access to Memory Mapped PCIe Configuration Space
     ##################################################################################
 
+    def populate_base_list(self):
+        base_name = self.cs.Cfg.get_mmio_def(self.MMCFG)
+        self.logger.log_debug(base_name)
+        base_reg = self.cs.Cfg.get_register_def(base_name['register'])
+        self.logger.log_debug(base_reg)
+        self.base_list = base_reg['bus']
+
     def get_MMCFG_base_address(self, bus):
-        (bar_base, bar_size) = self.cs.mmio.get_MMIO_BAR_base_address(self.MMCFG, bus)
+        _base_bus = None
+        if not self.base_list:
+            self.populate_base_list()
+        for _bus in self.base_list:
+            if bus >= _bus:
+                _base_bus = _bus
+            else:
+                break
+        if _base_bus is None:
+            raise CSReadError('Unable to find active bus with MMCFG defined')
+        (bar_base, bar_size) = self.cs.mmio.get_MMIO_BAR_base_address(self.MMCFG, _base_bus)
         if self.cs.Cfg.register_has_field(self.PCIEXBAR, "LENGTH") and not self.cs.is_server():
             reg_len = self.cs.read_register_field(self.PCIEXBAR, "LENGTH", instance=0)[0].value
             if reg_len == PCI_PCIEXBAR_REG_LENGTH_256MB:
