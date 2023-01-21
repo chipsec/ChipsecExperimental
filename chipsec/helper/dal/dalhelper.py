@@ -69,12 +69,12 @@ class DALHelper(Helper):
 ###############################################################################################
 
 
-    def create(self, start_driver):
+    def create(self):
         if logger().DEBUG:
             logger().log('[helper] DAL Helper created')
         return True
 
-    def start(self, start_driver, driver_exhists=False):
+    def start(self):
         self.driver_loaded = True
         if self.base.threads[self.find_thread()].cv.isrunning:
             self.base.halt()
@@ -189,11 +189,11 @@ class DALHelper(Helper):
             width = width // 2
         return
 
-    def read_phys_mem(self, phys_address_hi, phys_address_lo, length):
-        return self.read_physical_mem((phys_address_hi << 32) | phys_address_lo, length)
+    def read_phys_mem(self, phys_address, length):
+        return self.read_physical_mem(phys_address, length)
 
-    def write_phys_mem(self, phys_address_hi, phys_address_lo, length, buf):
-        self.write_physical_mem((phys_address_hi << 32) | phys_address_lo, length, buf)
+    def write_phys_mem(self, phys_address, length, buf):
+        self.write_physical_mem(phys_address, length, buf)
         return
 
     #
@@ -371,7 +371,8 @@ class DALHelper(Helper):
     def map_io_space(self, physical_address, length, cache_type):
         return physical_address
 
-    def read_mmio_reg(self, phys_address, size):
+    def read_mmio_reg(self, bar_base, size, offset=0, bar_size=None):
+        phys_address = bar_base + offset
         out_buf = self.read_physical_mem(phys_address, size)
         if size == 8:
             value = struct.unpack('=Q', out_buf[:size])[0]
@@ -385,7 +386,8 @@ class DALHelper(Helper):
             value = 0
         return value
 
-    def write_mmio_reg(self, phys_address, size, value):
+      def write_mmio_reg(self, bar_base, size, value, offset=0, bar_size=None):
+        phys_address = bar_base + offset
         if size == 8:
             buf = struct.pack('=Q', value)
         elif size == 4:

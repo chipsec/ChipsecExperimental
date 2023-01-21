@@ -37,14 +37,13 @@ import sys
 
 from chipsec import defines
 from chipsec.helper.oshelper import get_tools_path
-from chipsec.exceptions import OsHelperError, UnimplementedAPIError, UnimplementedNativeAPIError
+from chipsec.exceptions import OsHelperError, UnimplementedAPIError
 from chipsec.helper.basehelper import Helper
 from chipsec.logger import logger
 import chipsec.file
 from chipsec.hal.uefi_common import EFI_VARIABLE_NON_VOLATILE, EFI_VARIABLE_BOOTSERVICE_ACCESS, EFI_VARIABLE_RUNTIME_ACCESS
 from chipsec.hal.uefi_common import EFI_VARIABLE_HARDWARE_ERROR_RECORD, EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS
 from chipsec.hal.uefi_common import EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS, EFI_VARIABLE_APPEND_WRITE
-from chipsec.helper.linux.legacy_pci import LEGACY_PCI
 
 MSGBUS_MDR_IN_MASK = 0x1
 MSGBUS_MDR_OUT_MASK = 0x2
@@ -73,16 +72,6 @@ IOCTL_MSGBUS_SEND_MESSAGE = 0x15
 IOCTL_FREE_PHYSMEM = 0x16
 
 _tools = {}
-class MemoryMapping(mmap.mmap):
-    """Memory mapping based on Python's mmap.
-
-    This subclass keeps tracks of the start and end of the mapping.
-    """
-
-    def __init__(self, fileno, length, flags, prot, offset):
-        self.start = offset
-        self.end = offset + length
-        super().__init__()
 
 
 class LinuxHelper(Helper):
@@ -107,13 +96,6 @@ class LinuxHelper(Helper):
         self.dev_mem = None
         self.dev_port = None
         self.dev_msr = None
-        self.module_loaded = False
-        self.legacy_pci = None
-
-        # A list of all the mappings allocated via map_io_space. When using
-        # read/write MMIO, if the region is already mapped in the process's
-        # memory, simply read/write from there.
-        self.mappings = []
 
 ###############################################################################################
 # Driver/service management functions
@@ -128,13 +110,7 @@ class LinuxHelper(Helper):
         return os.path.join(self.DKMS_DIR, self.MODULE_NAME, version, self.os_release, os_machine_dir_name, "module", "chipsec.ko")
 
     # This function load CHIPSEC driver
-
     def load_chipsec_module(self):
-        if os.path.exists(self.DEVICE_NAME):
-            if logger().DEBUG:
-                logger().log("Module for {} already loaded".format(self.DEVICE_NAME))
-            return
-
         page_is_ram = ""
         phys_mem_access_prot = ""
         a1 = ""
@@ -142,15 +118,13 @@ class LinuxHelper(Helper):
         if self.SUPPORT_KERNEL26_GET_PAGE_IS_RAM:
             page_is_ram = self.get_page_is_ram()
             if not page_is_ram:
-                if logger().DEBUG:
-                    logger().log("Cannot find symbol 'page_is_ram'")
+                logger().log_debug("Cannot find symbol 'page_is_ram'")
             else:
                 a1 = "a1=0x{}".format(page_is_ram)
         if self.SUPPORT_KERNEL26_GET_PHYS_MEM_ACCESS_PROT:
             phys_mem_access_prot = self.get_phys_mem_access_prot()
             if not phys_mem_access_prot:
-                if logger().DEBUG:
-                    logger().log("Cannot find symbol 'phys_mem_access_prot'")
+                logger().log_debug("Cannot find symbol 'phys_mem_access_prot'")
             else:
                 a2 = "a2=0x{}".format(phys_mem_access_prot)
 
@@ -169,136 +143,53 @@ class LinuxHelper(Helper):
                         raise Exception("Cannot find chipsec.ko module")
         try:
             subprocess.check_output(["insmod", driver_path, a1, a2])
-            self.module_loaded = True
         except Exception as err:
             raise Exception("Could not start Linux Helper, are you running as Admin/root?\n\t{}".format(err))
         uid = gid = 0
         os.chown(self.DEVICE_NAME, uid, gid)
         os.chmod(self.DEVICE_NAME, 600)
         if os.path.exists(self.DEVICE_NAME):
-            if logger().DEBUG:
-                logger().log("Module {} loaded successfully".format(self.DEVICE_NAME))
+            logger().log_debug("Module {} loaded successfully".format(self.DEVICE_NAME))
         else:
-            logger().log_error("Fail to load module: {}".format(driver_path))
+            logger().error("Fail to load module: {}".format(driver_path))
         self.driverpath = driver_path
 
-    def unload_chipsec_module(self):
-        if self.module_loaded:
-            subprocess.call(["rmmod", self.MODULE_NAME])
-            self.module_loaded = False
-            if logger().DEBUG:
-                logger().log("Module for {} unloaded successfully".format(self.DEVICE_NAME))
-
-    def create(self, start_driver):
-        if logger().DEBUG:
-            logger().log("[helper] Linux Helper created")
+    def create(self):
+        logger().log_debug("[helper] Linux Helper created")
         return True
 
-    def start(self, start_driver, driver_exists=False):
-        if start_driver:
-            self.load_chipsec_module()
-        self.init(start_driver)
-        if logger().DEBUG:
-            logger().log("[helper] Linux Helper started/loaded")
+    def start(self):
+        if os.path.exists(self.DEVICE_NAME):
+            subprocess.call(["rmmod", self.MODULE_NAME])
+        self.load_chipsec_module()
+        self.init()
+        logger().log_debug("[helper] Linux Helper started/loaded")
         return True
 
     def stop(self, start_driver):
         self.close()
-        self.unload_chipsec_module()
-        if logger().DEBUG:
-            logger().log("[helper] Linux Helper stopped/unloaded")
+        if self.driver_loaded:
+            subprocess.call(["rmmod", self.MODULE_NAME])
+        logger().log_debug("[helper] Linux Helper stopped/unloaded")
         return True
 
     def delete(self, start_driver):
-        if logger().DEBUG:
-            logger().log("[helper] Linux Helper deleted")
+        logger().log_debug("[helper] Linux Helper deleted")
         return True
 
-    def init(self, start_driver):
+    def init(self):
         x64 = True if sys.maxsize > 2**32 else False
         self._pack = 'Q' if x64 else 'I'
-
-        if start_driver:
-            logger().log("****** Chipsec Linux Kernel module is licensed under GPL 2.0")
-
-            try:
-                self.dev_fh = open(self.DEVICE_NAME, "rb+")
-                self.driver_loaded = True
-            except IOError as e:
-                raise OsHelperError("Unable to open chipsec device. Did you run as root/sudo and load the driver?\n {}".format(str(e)), e.errno)
-            except BaseException as be:
-                raise OsHelperError("Unable to open chipsec device. Did you run as root/sudo and load the driver?\n {}".format(str(be)), errno.ENXIO)
-
-            self._ioctl_base = self.compute_ioctlbase()
-
-    def devmem_available(self):
-        """Check if /dev/mem is usable.
-
-           In case the driver is not loaded, we might be able to perform the
-           requested operation via /dev/mem. Returns True if /dev/mem is
-           accessible.
-        """
-        if self.dev_mem:
-            return True
-
+        estr = "Unable to open chipsec device. Did you run as root/sudo and load the driver?\n {}"
         try:
-            self.dev_mem = os.open(self.DEV_MEM, os.O_RDWR)
-            return True
-        except IOError as err:
-            raise OsHelperError("Unable to open /dev/mem.\n"
-                                "This command requires access to /dev/mem.\n"
-                                "Are you running this command as root?\n"
-                                "{}".format(str(err)), err.errno)
+            self.dev_fh = open(self.DEVICE_NAME, "rb+")
+            self.driver_loaded = True
+        except IOError as e:
+            raise OsHelperError(estr.format(str(e)), e.errno)
+        except BaseException as be:
+            raise OsHelperError(estr.format(str(be)), errno.ENXIO)
 
-    def devport_available(self):
-        """Check if /dev/port is usable.
-
-           In case the driver is not loaded, we might be able to perform the
-           requested operation via /dev/port. Returns True if /dev/port is
-           accessible.
-        """
-        if self.dev_port:
-            return True
-
-        try:
-            self.dev_port = os.open(self.DEV_PORT, os.O_RDWR)
-            return True
-        except IOError as err:
-            raise OsHelperError("Unable to open /dev/port.\n"
-                                "This command requires access to /dev/port.\n"
-                                "Are you running this command as root?\n"
-                                "{}".format(str(err)), err.errno)
-
-    def devmsr_available(self):
-        """Check if /dev/cpu/CPUNUM/msr is usable.
-
-           In case the driver is not loaded, we might be able to perform the
-           requested operation via /dev/cpu/CPUNUM/msr. This requires loading
-           the (more standard) msr driver. Returns True if /dev/cpu/CPUNUM/msr
-           is accessible.
-        """
-        if self.dev_msr:
-            return True
-
-        try:
-            self.dev_msr = dict()
-            if not os.path.exists("/dev/cpu/0/msr"):
-                os.system("modprobe msr")
-            for cpu in os.listdir("/dev/cpu"):
-                if logger().DEBUG:
-                    logger().log("found cpu = {}".format(cpu))
-                if cpu.isdigit():
-                    cpu = int(cpu)
-                    self.dev_msr[cpu] = os.open("/dev/cpu/" + str(cpu) + "/msr", os.O_RDWR)
-                    if logger().DEBUG:
-                        logger().log("Added dev_msr {}".format(str(cpu)))
-            return True
-        except IOError as err:
-            raise OsHelperError("Unable to open /dev/cpu/CPUNUM/msr.\n"
-                                "This command requires access to /dev/cpu/CPUNUM/msr.\n"
-                                "Are you running this command as root?\n"
-                                "Do you have the msr kernel module installed?\n"
-                                "{}".format(str(err)), err.errno)
+        self._ioctl_base = self.compute_ioctlbase()
 
     def close(self):
         if self.dev_fh:
@@ -332,30 +223,8 @@ class LinuxHelper(Helper):
 ###############################################################################################
 # Actual API functions to access HW resources
 ###############################################################################################
-    def memory_mapping(self, base, size):
-        """Returns the mmap region that fully encompasses this area.
-
-        Returns None if no region matches.
-        """
-        for region in self.mappings:
-            if region.start <= base and region.end >= base + size:
-                return region
-        return None
-
-    def native_map_io_space(self, base, size, cache_type):
-        """Map to memory a specific region."""
-        if self.devmem_available() and not self.memory_mapping(base, size):
-            if logger().DEBUG:
-                logger().log("[helper] Mapping 0x{:x} to memory".format(base))
-            length = max(size, resource.getpagesize())
-            page_aligned_base = base - (base % resource.getpagesize())
-            mapping = MemoryMapping(self.dev_mem, length, mmap.MAP_SHARED,
-                                    mmap.PROT_READ | mmap.PROT_WRITE,
-                                    offset=page_aligned_base)
-            self.mappings.append(mapping)
-
-    def map_io_space(self, base, size, cache_type):
-        raise UnimplementedAPIError("map_io_space")
+    # def map_io_space(self, base, size, cache_type):
+    #     raise UnimplementedAPIError("map_io_space")
 
     def __mem_block(self, sz, newval=None):
         if newval is None:
@@ -365,34 +234,17 @@ class LinuxHelper(Helper):
             self.dev_fh.flush()
         return 1
 
-    def write_phys_mem(self, phys_address_hi, phys_address_lo, length, newval):
+    def write_phys_mem(self, phys_address, length, newval):
         if newval is None:
             return None
-        addr = (phys_address_hi << 32) | phys_address_lo
-        self.dev_fh.seek(addr)
+        # addr = (phys_address_hi << 32) | phys_address_lo
+        self.dev_fh.seek(phys_address)
         return self.__mem_block(length, newval)
 
-    def native_write_phys_mem(self, phys_address_hi, phys_address_lo, length, newval):
-        if newval is None:
-            return None
-        if self.devmem_available():
-            addr = (phys_address_hi << 32) | phys_address_lo
-            os.lseek(self.dev_mem, addr, os.SEEK_SET)
-            written = os.write(self.dev_mem, newval)
-            if written != length:
-                if logger().DEBUG:
-                    logger().log_error("Cannot write {} to memory {:016X} (wrote {:d} of {:d})".format(newval, addr, written, length))
-
-    def read_phys_mem(self, phys_address_hi, phys_address_lo, length):
-        addr = (phys_address_hi << 32) | phys_address_lo
-        self.dev_fh.seek(addr)
+    def read_phys_mem(self, phys_address, length):
+        # addr = (phys_address_hi << 32) | phys_address_lo
+        self.dev_fh.seek(phys_address)
         return self.__mem_block(length)
-
-    def native_read_phys_mem(self, phys_address_hi, phys_address_lo, length):
-        if self.devmem_available():
-            addr = (phys_address_hi << 32) | phys_address_lo
-            os.lseek(self.dev_mem, addr, os.SEEK_SET)
-            return os.read(self.dev_mem, length)
 
     def va2pa(self, va):
         error_code = 0
@@ -426,32 +278,6 @@ class LinuxHelper(Helper):
         x = struct.unpack("5" + self._pack, ret)
         return x[4]
 
-    def native_read_pci_reg(self, bus, device, function, offset, size, domain=0):
-        device_name = "{domain:04x}:{bus:02x}:{device:02x}.{function}".format(
-                      domain=domain, bus=bus, device=device, function=function)
-        device_path = "/sys/bus/pci/devices/{}/config".format(device_name)
-        if not os.path.exists(device_path):
-            if offset < 256:
-                if self.legacy_pci:
-                    pci = self.legacy_pci
-                else:
-                    pci = LEGACY_PCI()
-                    self.legacy_pci = pci
-                value = pci.read_pci_config(bus, device, function, offset)
-                return value
-            else:
-                byte = b"\xff"
-                return defines.unpack1(byte * size, size)
-        try:
-            config = open(device_path, "rb")
-        except IOError as err:
-            raise OsHelperError("Unable to open {}".format(device_path), err.errno)
-        config.seek(offset)
-        reg = config.read(size)
-        config.close()
-        reg = defines.unpack1(reg, size)
-        return reg
-
     def write_pci_reg(self, bus, device, function, offset, value, size=4):
         _PCI_DOM = 0  # Change PCI domain, if there is more than one.
         d = struct.pack("5" + self._pack, ((_PCI_DOM << 16) | bus), ((device << 16) | function), offset, size, value)
@@ -463,27 +289,6 @@ class LinuxHelper(Helper):
             return None
         x = struct.unpack("5" + self._pack, ret)
         return x[4]
-
-    def native_write_pci_reg(self, bus, device, function, offset, value, size=4, domain=0):
-        device_name = "{domain:04x}:{bus:02x}:{device:02x}.{function}".format(
-                      domain=domain, bus=bus, device=device, function=function)
-        device_path = "/sys/bus/pci/devices/{}/config".format(device_name)
-        if not os.path.exists(device_path):
-            if offset < 256:
-                if self.legacy_pci:
-                    pci = self.legacy_pci
-                else:
-                    pci = LEGACY_PCI()
-                    self.legacy_pci = pci
-                value = pci.write_pci_config(bus, device, function, offset, value)
-                return False
-        try:
-            config = open(device_path, "wb")
-        except IOError as err:
-            raise OsHelperError("Unable to open {}".format(device_path), err.errno)
-        config.seek(offset)
-        config.write(defines.pack1(value, size))
-        config.close()
 
     def load_ucode_update(self, cpu_thread_id, ucode_update_buf):
         cpu_ucode_thread_id = ctypes.c_int(cpu_thread_id)
@@ -518,35 +323,9 @@ class LinuxHelper(Helper):
 
         return value
 
-    def native_read_io_port(self, io_port, size):
-        if self.devport_available():
-            os.lseek(self.dev_port, io_port, os.SEEK_SET)
-
-            value = os.read(self.dev_port, size)
-            if 1 == size:
-                return struct.unpack("B", value)[0]
-            elif 2 == size:
-                return struct.unpack("H", value)[0]
-            elif 4 == size:
-                return struct.unpack("I", value)[0]
-
     def write_io_port(self, io_port, value, size):
         in_buf = struct.pack("3" + self._pack, io_port, size, value)
         return self.ioctl(IOCTL_WRIO, in_buf)
-
-    def native_write_io_port(self, io_port, newval, size):
-        if self.devport_available():
-            os.lseek(self.dev_port, io_port, os.SEEK_SET)
-            if 1 == size:
-                fmt = 'B'
-            elif 2 == size:
-                fmt = 'H'
-            elif 4 == size:
-                fmt = 'I'
-            written = os.write(self.dev_port, struct.pack(fmt, newval))
-            if written != size:
-                if logger().DEBUG:
-                    logger().log_error("Cannot write {} to port {:x} (wrote {:d} of {:d})".format(newval, io_port, written, size))
 
     def read_cr(self, cpu_thread_id, cr_number):
         self.set_affinity(cpu_thread_id)
@@ -568,27 +347,11 @@ class LinuxHelper(Helper):
         unbuf = struct.unpack("4" + self._pack, self.ioctl(IOCTL_RDMSR, in_buf))
         return (unbuf[3], unbuf[2])
 
-    def native_read_msr(self, thread_id, msr_addr):
-        if self.devmsr_available():
-            os.lseek(self.dev_msr[thread_id], msr_addr, os.SEEK_SET)
-            buf = os.read(self.dev_msr[thread_id], 8)
-            unbuf = struct.unpack("2I", buf)
-            return (unbuf[0], unbuf[1])
-
     def write_msr(self, thread_id, msr_addr, eax, edx):
         self.set_affinity(thread_id)
         in_buf = struct.pack("4" + self._pack, thread_id, msr_addr, edx, eax)
         self.ioctl(IOCTL_WRMSR, in_buf)
         return
-
-    def native_write_msr(self, thread_id, msr_addr, eax, edx):
-        if self.devmsr_available():
-            os.lseek(self.dev_msr[thread_id], msr_addr, os.SEEK_SET)
-            buf = struct.pack("2I", eax, edx)
-            written = os.write(self.dev_msr[thread_id], buf)
-            if written != 8:
-                if logger().DEBUG:
-                    logger().log_error("Cannot write {:8X} to MSR {:x}".format(buf, msr_addr))
 
     def get_descriptor_table(self, cpu_thread_id, desc_table_code):
         self.set_affinity(cpu_thread_id)
@@ -605,11 +368,6 @@ class LinuxHelper(Helper):
         out_buf = self.ioctl(IOCTL_CPUID, in_buf)
         return struct.unpack("4" + self._pack, out_buf)
 
-    def native_cpuid(self, eax, ecx):
-        import chipsec.helper.linux.cpuid as cpuid
-        _cpuid = cpuid.CPUID()
-        return _cpuid(eax, ecx)
-
     def alloc_phys_mem(self, num_bytes, max_addr):
         in_buf = struct.pack("2" + self._pack, num_bytes, max_addr)
         out_buf = self.ioctl(IOCTL_ALLOC_PHYSMEM, in_buf)
@@ -620,64 +378,21 @@ class LinuxHelper(Helper):
         out_buf = self.ioctl(IOCTL_FREE_PHYSMEM, in_buf)
         return struct.unpack("1" + self._pack, out_buf)[0]
 
-    def read_mmio_reg(self, phys_address, size):
+    def read_mmio_reg(self, bar_base, size, offset=0, bar_size=None):
+        phys_address = bar_base + offset
         in_buf = struct.pack("2" + self._pack, phys_address, size)
         out_buf = self.ioctl(IOCTL_RDMMIO, in_buf)
         reg = out_buf[:size]
         return defines.unpack1(reg, size)
 
-    def native_read_mmio_reg(self, bar_base, bar_size, offset, size):
-        if bar_size is None or bar_size < offset:
-            bar_size = offset + size
-        if self.devmem_available():
-            region = self.memory_mapping(bar_base, bar_size)
-            if not region:
-                self.native_map_io_space(bar_base, bar_size, 0)
-                region = self.memory_mapping(bar_base, bar_size)
-                if not region:
-                    logger().log_error("Unable to map region {:08x}".format(bar_base))
-
-            # Create memoryview into mmap'ed region in dword granularity
-            region_mv = memoryview(region)
-            region_dw = region_mv.cast('I')
-            # read one DWORD
-            offset_in_region = (bar_base + offset - region.start) // 4
-            reg = region_dw[offset_in_region]
-            return reg
-
-    def write_mmio_reg(self, phys_address, size, value):
+    def write_mmio_reg(self, bar_base, size, value, offset=0, bar_size=None):
+        phys_address = bar_base + offset
         in_buf = struct.pack("3" + self._pack, phys_address, size, value)
-        out_buf = self.ioctl(IOCTL_WRMMIO, in_buf)
-
-    def native_write_mmio_reg(self, bar_base, bar_size, offset, size, value):
-        if bar_size is None:
-            bar_size = offset + size
-        if self.devmem_available():
-            reg = defines.pack1(value, size)
-            region = self.memory_mapping(bar_base, bar_size)
-            if not region:
-                self.native_map_io_space(bar_base, bar_size, 0)
-                region = self.memory_mapping(bar_base, bar_size)
-                if not region:
-                    logger().log_error("Unable to map region {:08x}".format(bar_base))
-
-            # Create memoryview into mmap'ed region in dword granularity
-            region_mv = memoryview(region)
-            region_dw = region_mv.cast('I')
-            # Create memoryview containing data in dword
-            data_mv = memoryview(reg)
-            data_dw = data_mv.cast('I')
-            # write one DWORD
-            offset_in_region = (bar_base + offset - region.start) // 4
-            region_dw[offset_in_region] = data_dw[0]
+        self.ioctl(IOCTL_WRMMIO, in_buf)
 
     def get_ACPI_SDT(self):
         raise UnimplementedAPIError("get_ACPI_SDT")
     # @TODO: implement ACPI access in native mode through file system
-
-    def native_get_ACPI_table(self):
-        raise UnimplementedNativeAPIError("native_get_ACPI_table")
-    # ACPI access is implemented through ACPI HAL rather than through kernel module
 
     def get_ACPI_table(self, table_name):
         raise UnimplementedAPIError("get_ACPI_table")
@@ -738,36 +453,14 @@ class LinuxHelper(Helper):
     def delete_EFI_variable(self, name, guid):
         return self.kern_set_EFI_variable(name, guid, "")
 
-    def native_delete_EFI_variable(self, name, guid):
-        if self.use_efivars():
-            return self.EFIVARS_set_EFI_variable(name, guid, None)
-
     def list_EFI_variables(self):
         return self.kern_list_EFI_variables()
-
-    def native_list_EFI_variables(self):
-        if self.use_efivars():
-            return self.EFIVARS_list_EFI_variables()
-        else:
-            return self.VARS_list_EFI_variables()
 
     def get_EFI_variable(self, name, guid, attrs=None):
         return self.kern_get_EFI_variable(name, guid)
 
-    def native_get_EFI_variable(self, name, guid, attrs=None):
-        if self.use_efivars():
-            return self.EFIVARS_get_EFI_variable(name, guid)
-        else:
-            return self.VARS_get_EFI_variable(name, guid)
-
     def set_EFI_variable(self, name, guid, data, datasize, attrs=None):
         return self.kern_set_EFI_variable(name, guid, data)
-
-    def native_set_EFI_variable(self, name, guid, data, datasize, attrs=None):
-        if self.use_efivars():
-            return self.EFIVARS_set_EFI_variable(name, guid, data, attrs)
-        else:
-            return self.VARS_set_EFI_variable(name, guid, data)
 
     #
     # Internal (U)EFI Variable API functions via CHIPSEC kernel module

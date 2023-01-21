@@ -77,7 +77,7 @@ class CPUID_struct(Structure):
     _fields_ = [(r, c_uint32) for r in ("eax", "ebx", "ecx", "edx")]
 
 
-class CPUID:
+class CPUID(object):
     def __init__(self):
         if platform.machine() not in ("AMD64", "x86_64", "x86", "i686"):
             raise SystemError("Only available for x86")
@@ -102,18 +102,3 @@ class CPUID:
     def __del__(self):
         del self.fp
         self.addr.close()
-
-
-if __name__ == "__main__":
-    def valid_inputs():
-        cpuid = CPUID()
-        for eax in (0x0, 0x80000000):
-            highest, _, _, _ = cpuid(eax)
-            while eax <= highest:
-                regs = cpuid(eax)
-                yield (eax, regs)
-                eax += 1
-
-    print(" ".join(x.ljust(8) for x in ("CPUID", "A", "B", "C", "D")).strip())
-    for eax, regs in valid_inputs():
-        print("%08x" % eax, " ".join("%08x" % reg for reg in regs))

@@ -73,12 +73,12 @@ class EfiHelper(Helper):
 # Driver/service management functions
 ###############################################################################################
 
-    def create(self, start_driver):
+    def create(self):
         if logger().DEBUG:
             logger().log("[helper] UEFI Helper created")
         return True
 
-    def start(self, start_driver, driver_exists=False):
+    def start(self):
         # The driver is part of the modified version of edk2.
         # It is always considered as loaded.
         self.driver_loaded = True
@@ -105,10 +105,14 @@ class EfiHelper(Helper):
     # Physical memory access
     #
 
-    def read_phys_mem(self, phys_address_hi, phys_address_lo, length):
+    def read_phys_mem(self, phys_address, length):
+        phys_address_lo = phys_address & 0xFFFFFFFF
+        phys_address_hi = (phys_address >> 32) & 0xFFFFFFFF
         return edk2.readmem(phys_address_lo, phys_address_hi, length)
 
-    def write_phys_mem(self, phys_address_hi, phys_address_lo, length, buf):
+    def write_phys_mem(self, phys_address, length, buf):
+        phys_address_lo = phys_address & 0xFFFFFFFF
+        phys_address_hi = (phys_address >> 32) & 0xFFFFFFFF
         if 4 == length:
             dword_value = struct.unpack('I', buf)[0]
             edk2.writemem_dword(phys_address_lo, phys_address_hi, bytestostring(dword_value))
@@ -139,7 +143,8 @@ class EfiHelper(Helper):
     def map_io_space(self, physical_address, length, cache_type):
         return self.pa2va(physical_address)
 
-    def read_mmio_reg(self, phys_address, size):
+    def read_mmio_reg(self, bar_base, size, offset=0, bar_size=None):
+        phys_address = bar_base + offset
         phys_address_lo = phys_address & 0xFFFFFFFF
         phys_address_hi = (phys_address >> 32) & 0xFFFFFFFF
         out_buf = edk2.readmem(phys_address_lo, phys_address_hi, size)
@@ -155,7 +160,8 @@ class EfiHelper(Helper):
             value = 0
         return value
 
-    def write_mmio_reg(self, phys_address, size, value):
+    def write_mmio_reg(self, bar_base, size, value, offset=0, bar_size=None):
+        phys_address = bar_base + offset
         phys_address_lo = phys_address & 0xFFFFFFFF
         phys_address_hi = (phys_address >> 32) & 0xFFFFFFFF
         if size == 4:

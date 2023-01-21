@@ -16,19 +16,12 @@
 #
 # Contact information:
 # chipsec@intel.com
-#
+
+import os
 from chipsec.logger import logger
 
 # Base class for the helpers
-
-
 class Helper:
-    class __metaclass__(type):
-        def __init__(cls, name, bases, attrs):
-            if not hasattr(cls, 'registry'):
-                cls.registry = []
-            else:
-                cls.registry.append((name, cls))
 
     def __init__(self):
         self.driver_loaded = False
@@ -39,27 +32,20 @@ class Helper:
         self.name = "Helper"
         self.driverpath = None
 
-    def use_native_api(self):
-        return (not self.driver_loaded)
-
-    def create(self, start_driver):
-        if logger().VERBOSE:
-            logger().log("[helper] Helper created")
+    def create(self):
+        logger().log_verbose("[helper] Helper created")
         raise NotImplementedError()
 
-    def start(self, start_driver, from_file=None):
-        if logger().VERBOSE:
-            logger().log("[helper] Helper started/loaded")
+    def start(self):
+        logger().log_verbose("[helper] Helper started/loaded")
         raise NotImplementedError()
 
     def stop(self, start_driver):
-        if logger().VERBOSE:
-            logger().log("[helper] Helper stopped/unloaded")
+        logger().log_verbose("[helper] Helper stopped/unloaded")
         raise NotImplementedError()
 
     def delete(self, start_driver):
-        if logger().VERBOSE:
-            logger().log("[helper] Helper deleted")
+        logger().log_verbose("[helper] Helper deleted")
         raise NotImplementedError()
 
     def get_info(self):
@@ -82,19 +68,19 @@ class Helper:
     #
     # read/write mmio
     #
-    def read_mmio_reg(self, phys_address, size):
+    def read_mmio_reg(self, bar_base, size, offset=0, bar_size=None):
         raise NotImplementedError()
 
-    def write_mmio_reg(self, phys_address, size, value):
+    def write_mmio_reg(self, bar_base, size, value, offset=0, bar_size=None):
         raise NotImplementedError()
 
     #
     # physical_address is 64 bit integer
     #
-    def read_phys_mem(self, phys_address_hi, phys_address_lo, length):
+    def read_phys_mem(self, phys_address, length):
         raise NotImplementedError()
 
-    def write_phys_mem(self, phys_address_hi, phys_address_lo, length, buf):
+    def write_phys_mem(self, phys_address, length, buf):
         raise NotImplementedError()
 
     def alloc_phys_mem(self, length, max_phys_address):
@@ -224,10 +210,13 @@ class Helper:
     # File system
     #
     def getcwd(self):
-        raise NotImplementedError()
+        return os.getcwd()
 
     #
     # Speculation control
     #
     def retpoline_enabled(self):
         raise NotImplementedError()
+
+    def get_bios_version(self):
+        return 'Unable to read bios version'

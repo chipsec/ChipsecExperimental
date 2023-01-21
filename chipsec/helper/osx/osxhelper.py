@@ -99,13 +99,13 @@ class OSXHelper(Helper):
             logger().log_error("Failed to load the module {}".format(self.DRIVER_NAME))
         self.driverpath = driver_path
 
-    def create(self, start_driver):
+    def create(self):
         # self.init(start_driver)
         if logger().DEBUG:
             logger().log("[helper] OSX Helper created")
         return True
 
-    def start(self, start_driver, driver_exists=False):
+    def start(self, start_driver):
         if start_driver:
             if os.path.exists(self.DEVICE_NAME):
                 driver_path = os.path.join(chipsec.file.get_main_dir(), "chipsec",
@@ -160,12 +160,12 @@ class OSXHelper(Helper):
         self.dev_fh.write(newval)
         self.dev_fh.flush()
 
-    def write_phys_mem(self, addr_hi, addr_lo, size, value):
-        if(value is not None):
-            self.mem_write_block((addr_hi << 32) | addr_lo, size, value)
+    def write_phys_mem(self, phys_address, length, newval):
+        if newval is not None:
+            self.mem_write_block(phys_address, length, newval)
 
-    def read_phys_mem(self, addr_hi, addr_lo, size):
-        ret = self.mem_read_block((addr_hi << 32) | addr_lo, size)
+    def read_phys_mem(self, phys_address, length):
+        ret = self.mem_read_block(phys_address, length)
         return ret
 
     def read_pci_reg(self, bus, device, function, offset, size=4):
@@ -189,13 +189,15 @@ class OSXHelper(Helper):
             if logger().DEBUG:
                 logger().log_error("IOError")
 
-    def read_mmio_reg(self, phys_address, size):
+    def read_mmio_reg(self, bar_base, size, offset=0, bar_size=None):
+        phys_address = bar_base + offset
         data = struct.pack(_mmio_msg_t_fmt, phys_address, 0, size)
         ret = self.ioctl(IOCTL_RDMMIO, data)
         x = struct.unpack(_mmio_msg_t_fmt, ret)
         return x[1]
 
-    def write_mmio_reg(self, phys_address, size, value):
+    def write_mmio_reg(self, bar_base, size, value, offset=0, bar_size=None):
+        phys_address = bar_base + offset
         data = struct.pack(_mmio_msg_t_fmt, phys_address, value, size)
         ret = self.ioctl(IOCTL_WRMMIO, data)
 

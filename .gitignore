@@ -4,6 +4,7 @@
 *.obj
 *.pdb
 *.lib
+*.logs
 chipsec.egg-info
 dist
 build
