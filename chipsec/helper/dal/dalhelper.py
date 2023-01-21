@@ -386,7 +386,7 @@ class DALHelper(Helper):
             value = 0
         return value
 
-      def write_mmio_reg(self, bar_base, size, value, offset=0, bar_size=None):
+    def write_mmio_reg(self, bar_base, size, value, offset=0, bar_size=None):
         phys_address = bar_base + offset
         if size == 8:
             buf = struct.pack('=Q', value)

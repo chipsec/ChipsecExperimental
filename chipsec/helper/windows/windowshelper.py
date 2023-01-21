@@ -51,7 +51,7 @@ from chipsec.helper.basehelper import Helper
 from chipsec.defines import stringtobytes
 from chipsec.logger import logger
 import chipsec.file
-from chipsec.lib.uefi_common import EFI_GUID_STR
+from chipsec.hal.uefi_common import EFI_GUID_STR
 from chipsec import defines
 
 
@@ -81,6 +81,7 @@ STATUS_PRIVILEGED_INSTRUCTION = 0xC0000096
 # Defines for Win32 API Calls
 GENERIC_READ = 0x80000000
 GENERIC_WRITE = 0x40000000
+OPEN_EXISTING = 0x3
 
 FILE_DEVICE_UNKNOWN = 0x00000022
 
@@ -197,6 +198,36 @@ Attributes= 0x{:08X}
 """.format(EFI_GUID_STR(self.guid), self.Size, self.DataOffset, self.DataSize, self.Attributes)
 
 
+def getEFIvariables_NtEnumerateSystemEnvironmentValuesEx2(nvram_buf):
+    start = 0
+    buffer = nvram_buf
+    bsize = len(buffer)
+    header_fmt = "<IIII16s"
+    header_size = struct.calcsize(header_fmt)
+    variables = dict()
+    off = 0
+    while (off + header_size) < bsize:
+        efi_var_hdr = EFI_HDR_WIN(*struct.unpack_from(header_fmt, buffer[off: off + header_size]))
+
+        next_var_offset = off + efi_var_hdr.Size
+        efi_var_buf = buffer[off: next_var_offset]
+        efi_var_data = buffer[off + efi_var_hdr.DataOffset: off + efi_var_hdr.DataOffset + efi_var_hdr.DataSize]
+
+        #efi_var_name = "".join( buffer[ start + header_size : start + efi_var_hdr.DataOffset ] ).decode('utf-16-le')
+        str_fmt = "{:d}s".format(efi_var_hdr.DataOffset - header_size)
+        s, = struct.unpack(str_fmt, buffer[off + header_size: off + efi_var_hdr.DataOffset])
+        efi_var_name = str(s, "utf-16-le", errors="replace").split(u'\u0000')[0]
+
+        if efi_var_name not in variables.keys():
+            variables[efi_var_name] = []
+        #                                off, buf,         hdr,         data,         guid,                           attrs
+        variables[efi_var_name].append((off, efi_var_buf, efi_var_hdr, efi_var_data, EFI_GUID_STR(efi_var_hdr.guid), efi_var_hdr.Attributes))
+
+        if 0 == efi_var_hdr.Size:
+            break
+        off = next_var_offset
+
+    return variables
 def _handle_winerror(fn, msg, hr):
     _handle_error(("{} failed: {} ({:d})".format(fn, msg, hr)), hr)
 
@@ -656,6 +687,112 @@ class WindowsHelper(Helper):
         out_buf = self._ioctl(IOCTL_GET_CPU_DESCRIPTOR_TABLE, in_buf, 18)
         (limit, base, pa) = struct.unpack('=HQQ', out_buf)
         return (limit, base, pa)
+
+    #
+    # EFI Variable API
+    #
+    def EFI_supported(self):
+        # kern32.GetFirmwareEnvironmentVariable with garbage parameters will cause GetLastError() == 1 reliably on a legacy system
+        if self.GetFirmwareEnvironmentVariable is not None:
+            self.GetFirmwareEnvironmentVariable("", "{00000000-0000-0000-0000-000000000000}", 0, 0)
+            return win32api.GetLastError() != 1
+        elif self.GetFirmwareEnvironmentVariableEx is not None:
+            self.GetFirmwareEnvironmentVariableEx("", "{00000000-0000-0000-0000-000000000000}", 0, 0)
+            return win32api.GetLastError() != 1
+        else:
+            return False
+
+    def get_EFI_variable_full(self, name, guid, attrs=None):
+        status = 0  # EFI_SUCCESS
+        efi_var = create_string_buffer(EFI_VAR_MAX_BUFFER_SIZE)
+        if attrs is None:
+            if self.GetFirmwareEnvironmentVariable is not None:
+                if logger().DEBUG:
+                    logger().log("[helper] -> GetFirmwareEnvironmentVariable( name='{}', GUID='{}' )..".format(name, "{{{}}}".format(guid)))
+                length = self.GetFirmwareEnvironmentVariable(name, "{{{}}}".format(guid), efi_var, EFI_VAR_MAX_BUFFER_SIZE)
+        else:
+            if self.GetFirmwareEnvironmentVariableEx is not None:
+                pattrs = c_int(attrs)
+                if logger().DEBUG:
+                    logger().log("[helper] -> GetFirmwareEnvironmentVariableEx( name='{}', GUID='{}', attrs = 0x{:X} )..".format(name, "{{{}}}".format(guid), attrs))
+                length = self.GetFirmwareEnvironmentVariableEx(name, "{{{}}}".format(guid), efi_var, EFI_VAR_MAX_BUFFER_SIZE, pattrs)
+        if (0 == length) or (efi_var is None):
+            status = kernel32.GetLastError()
+            if logger().DEBUG:
+                logger().log_error('GetFirmwareEnvironmentVariable[Ex] returned error: {}'.format(WinError()))
+            efi_var_data = None
+            #raise WinError(errno.EIO,"Unable to get EFI variable")
+        else:
+            efi_var_data = efi_var[:length]
+
+        return (status, efi_var_data, attrs)
+
+    def get_EFI_variable(self, name, guid, attrs=None):
+        (status, data, attributes) = self.get_EFI_variable_full(name, guid, attrs)
+        return data
+
+    def set_EFI_variable(self, name, guid, data, datasize, attrs):
+        var = bytes(0) if data is None else data
+        var_len = len(var) if datasize is None else datasize
+        if isinstance(attrs, (str, bytes)):
+            attrs_data = "{message:\x00<{fill}}".format(message=bytestostring(attrs), fill=8)[:8]
+            attrs = struct.unpack("Q", stringtobytes(attrs_data))[0]
+
+        if attrs is None:
+            if self.SetFirmwareEnvironmentVariable is not None:
+                if logger().DEBUG:
+                    logger().log("[helper] -> SetFirmwareEnvironmentVariable( name='{}', GUID='{}', length=0x{:X} )..".format(name, "{{{}}}".format(guid), var_len))
+                ntsts = self.SetFirmwareEnvironmentVariable(name, "{{{}}}".format(guid), var, var_len)
+        else:
+            if self.SetFirmwareEnvironmentVariableEx is not None:
+                if logger().DEBUG:
+                    logger().log("[helper] -> SetFirmwareEnvironmentVariableEx( name='{}', GUID='{}', length=0x{:X}, attrs=0x{:X} )..".format(name, "{{{}}}".format(guid), var_len, attrs))
+                ntsts = self.SetFirmwareEnvironmentVariableEx(name, "{{{}}}".format(guid), var, var_len, attrs)
+        if 0 != ntsts:
+            status = 0  # EFI_SUCCESS
+        else:
+            status = kernel32.GetLastError()
+            if logger().DEBUG:
+                logger().log_error('SetFirmwareEnvironmentVariable[Ex] returned error: {}'.format(WinError()))
+            #raise WinError(errno.EIO, "Unable to set EFI variable")
+        return status
+
+    def delete_EFI_variable(self, name, guid):
+        return self.set_EFI_variable(name, guid, None, datasize=0, attrs=None)
+
+    def list_EFI_variables(self, infcls=2):
+        if logger().DEBUG:
+            logger().log('[helper] -> NtEnumerateSystemEnvironmentValuesEx( infcls={:d} )..'.format(infcls))
+        efi_vars = create_string_buffer(EFI_VAR_MAX_BUFFER_SIZE)
+        length = packl_ctypes(EFI_VAR_MAX_BUFFER_SIZE, 32)
+        status = self.NtEnumerateSystemEnvironmentValuesEx(infcls, efi_vars, length)
+        status = (((1 << 32) - 1) & status)
+        if (0xC0000023 == status):
+            retlength, = struct.unpack("<I", length)
+            efi_vars = create_string_buffer(retlength)
+            status = self.NtEnumerateSystemEnvironmentValuesEx(infcls, efi_vars, length)
+        elif (0xC0000002 == status):
+            if logger().DEBUG:
+                logger().log_warning('NtEnumerateSystemEnvironmentValuesEx was not found (NTSTATUS = 0xC0000002)')
+            if logger().DEBUG:
+                logger().log('[*] Your Windows does not expose UEFI Runtime Variable API. It was likely installed as legacy boot.\nTo use UEFI variable functions, chipsec needs to run in OS installed with UEFI boot (enable UEFI Boot in BIOS before installing OS)')
+            return None
+        if 0 != status:
+            lasterror = kernel32.GetLastError()
+            if (0xC0000001 == status and lasterror == 0x000003E6):  # ERROR_NOACCESS: Invalid access to memory location.  https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/18d8fbe8-a967-4f1c-ae50-99ca8e491d2d
+                if logger().DEBUG:
+                    logger().log_warning('NtEnumerateSystemEnvironmentValuesEx was not successful (NTSTATUS = 0xC0000001)')
+                if logger().DEBUG:
+                    logger().log('[*] Your Windows has restricted access to UEFI variables.\nTo use UEFI variable functions, chipsec needs to run in an older version of windows or in a different environment')
+                return None
+            else:
+                if logger().DEBUG:
+                    logger().log_error('NtEnumerateSystemEnvironmentValuesEx failed (GetLastError = 0x{:X})'.format(lasterror))
+                    logger().log_error('*** NTSTATUS: {:08X}'.format(status))
+                raise WinError()
+        if logger().DEBUG:
+            logger().log('[helper] len(efi_vars) = 0x{:X} (should be 0x20000)'.format(len(efi_vars)))
+        return getEFIvariables_NtEnumerateSystemEnvironmentValuesEx2(efi_vars)
 
     #
     # Interrupts

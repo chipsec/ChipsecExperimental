@@ -198,7 +198,7 @@ class SPI(hal_base.HALBase):
         # speed of MMIO access later on.
         try:
             self.cs.helper.map_io_space(self.rcba_spi_base, SPI_MMIO_BASE_LENGTH, 0)
-        except oshelper.UnimplementedAPIError:
+        except NotImplementedError:
             pass
 
         # Reading definitions of SPI flash controller registers

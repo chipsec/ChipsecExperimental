@@ -64,6 +64,7 @@ Registers used:
 _MODULE_NAME = 'sgx_check'
 from chipsec.module_common import BaseModule, ModuleResult, MTAG_HWCONFIG
 from chipsec.defines import BIT0, BIT1, BIT2, BIT5, BIT6, BIT7, BIT8
+from chipsec.helper.oshelper import helper as os_helper
 TAGS = [MTAG_HWCONFIG]
 
 
@@ -75,7 +76,7 @@ class sgx_check(BaseModule):
 
     def is_supported(self):
         sgx_cpu_support = False
-        if self.cs.helper.is_efi():
+        if os_helper().is_efi():
             self.logger.log_important('Currently this module cannot run within the EFI Shell. Exiting.')
         elif not self.cs.register_has_field('IA32_FEATURE_CONTROL', 'SGX_GLOBAL_EN'):
             self.logger.log_important('IA32_FEATURE_CONTROL.SGX_GLOBAL_EN not defined for platform.  Skipping module.')

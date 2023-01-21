@@ -420,7 +420,7 @@ class ChipsecMain:
 
         if self._load_config:
             try:
-                self._cs.init(self._platform, self._pch, (not self._no_driver), self._helper)
+                self._cs.init(self._platform, self._pch, self._helper)
             except UnknownChipsetError as msg:
                 self.logger.log_error("Platform is not supported ({}).".format(str(msg)))
                 if self._unknownPlatform:
@@ -463,7 +463,7 @@ class ChipsecMain:
         else:
             modules_failed = self.run_all_modules()
 
-        self._cs.destroy((not self._no_driver))
+        self._cs.destroyHelper((not self._no_driver))
         del self._cs
         self.logger.disable()
         return modules_failed

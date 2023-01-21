@@ -413,7 +413,7 @@ class UEFI(hal_base.HALBase):
                     logger().log("[uefi] Pointer to ACPI Global Data structure: 0x{:016X}".format(AcpiGlobalAddr))
                 if logger().HAL:
                     logger().log("[uefi] Decoding ACPI Global Data structure..")
-                AcpiVariableSet = self.helper.read_physical_mem(AcpiGlobalAddr, ACPI_VARIABLE_SET_STRUCT_SIZE)
+                AcpiVariableSet = self.helper.read_phys_mem(AcpiGlobalAddr, ACPI_VARIABLE_SET_STRUCT_SIZE)
                 if logger().HAL:
                     logger().log('[uefi] AcpiVariableSet structure:')
                     print_buffer(bytestostring(AcpiVariableSet))
@@ -456,7 +456,7 @@ class UEFI(hal_base.HALBase):
             # Decode the S3 Resume Boot-Script into a sequence of operations/opcodes
             #
             # @TODO: should be dumping memory contents in a loop until end opcode is found or id'ing actual size
-            script_buffer = self.helper.read_physical_mem(bootscript_pa, 0x200000)
+            script_buffer = self.helper.read_phys_mem(bootscript_pa, 0x200000)
             if logger().HAL:
                 logger().log('[uefi] Decoding S3 Resume Boot-Script..')
             script_entries = parse_script(script_buffer, log_script)

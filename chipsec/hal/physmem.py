@@ -51,7 +51,7 @@ class Memory(HALBase):
     def read_physical_mem(self, phys_address, length):
         if self.logger.HAL:
             self.logger.log("[mem] 0x{:016X}".format(phys_address))
-        return self.helper.read_physical_mem(phys_address, length)
+        return self.helper.read_phys_mem(phys_address, length)
 
     def read_physical_mem_qword(self, phys_address):
         out_buf = self.read_physical_mem(phys_address, 8)
@@ -87,7 +87,7 @@ class Memory(HALBase):
         if self.logger.HAL:
             self.logger.log('[mem] buffer len = 0x{:X} to PA = 0x{:016X}'.format(length, phys_address))
             print_buffer_bytes(buf)
-        return self.helper.write_physical_mem(phys_address, length, buf)
+        return self.helper.write_phys_mem(phys_address, length, buf)
 
     def write_physical_mem_dword(self, phys_address, dword_value):
         if self.logger.HAL:

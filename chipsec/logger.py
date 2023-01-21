@@ -400,7 +400,7 @@ class Logger:
         is_python_64 = True if (sys.maxsize > 2**32) else False
         python_version = platform.python_version()
         python_arch = '64-bit' if is_python_64 else '32-bit'
-        (helper_name, driver_path) = cs.helper.helper.get_info()
+        (helper_name, driver_path) = cs.helper.get_info()
 
         self.log(f'[CHIPSEC] OS      : {system} {release} {version} {machine}')
         self.log(f'[CHIPSEC] Python  : {python_version} ({python_arch})')

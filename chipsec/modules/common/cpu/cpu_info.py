@@ -42,6 +42,7 @@ Registers used:
 import struct
 from chipsec.module_common import BaseModule, ModuleResult
 from chipsec.defines import bytestostring
+from chipsec.helper.oshelper import helper as os_helper
 
 
 class cpu_info(BaseModule):
@@ -62,13 +63,13 @@ class cpu_info(BaseModule):
 
         # Determine number of threads to check
         thread_count = 1
-        if not self.cs.helper.is_efi():
+        if not os_helper().is_efi():
             thread_count = self.cs.msr.get_cpu_thread_count()
 
         for thread in range(thread_count):
             # Handle processor binding so we are always checking processor 0
             # for this example.  No need to do this in UEFI Shell.
-            if not self.cs.helper.is_efi():
+            if not os_helper().is_efi():
                 self.cs.helper.set_affinity(thread)
 
             # Display thread

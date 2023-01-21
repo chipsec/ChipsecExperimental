@@ -57,6 +57,7 @@ import sys
 
 from chipsec.module_common import BaseModule, ModuleResult
 from chipsec.logger import logger
+from chipsec.helper.oshelper import helper as os_helper
 
 
 DEFAULT_PE_FILE_PATH = "chipsec/modules/tools/secureboot/Shell.efi"
@@ -534,7 +535,7 @@ class te(BaseModule):
                 self.logger.log("[*] no bootloaders to replace. Exit...")
                 return ModuleResult.SKIPPED
 
-            do_mount = self.cs.helper.is_windows()  # @TODO
+            do_mount = os_helper().is_windows()  # @TODO
             if 'restore_bootloader' == mode:
                 sts = restore_bootloader(bootloader_paths, do_mount)
             elif 'replace_bootloader' == mode:
