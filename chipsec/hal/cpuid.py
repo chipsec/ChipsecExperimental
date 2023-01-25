@@ -42,3 +42,7 @@ class CpuID(hal_base.HALBase):
         if logger().HAL:
             logger().log("[cpuid] out: EAX=0x{:08X}, EBX=0x{:08X}, ECX=0x{:08X}, EDX=0x{:08X}".format(eax, ebx, ecx, edx))
         return (eax, ebx, ecx, edx)
+
+    def get_proc_info(self):
+        (eax, _, _, _) = self.cpuid(0x01, 0x00)
+        return eax
