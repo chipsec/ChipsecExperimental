@@ -178,7 +178,7 @@ class Cfg:
             # platform code was not passed in try to determine based upon cpu id
             vid_found = vid in self.chipset_dictionary
             did_found = did in self.chipset_dictionary[vid]
-            #check if multiple platform found by [vid][did]
+            # check if multiple platform found by [vid][did]
             multiple_found = len(self.chipset_dictionary[vid][did]) > 1
             logger().log_debug("read out cpuid:{}, platforms found per vid & did:{}, multiple:{}".format(cpuid, self.chipset_dictionary[vid][did], multiple_found))
             for i in self.detection_dictionary.keys():
@@ -253,7 +253,7 @@ class Cfg:
             self.pch_did = pch_did
             self.pch_rid = pch_rid
 
-        if self.req_pch == False:
+        if not self.req_pch:
             self.pch_longname = self.longname
             _unknown_pch = False
 
@@ -262,6 +262,9 @@ class Cfg:
     ###
     # Platform detection functions
     ###
+    def get_chipset_code(self):
+        return self.code
+
     def get_pch_code(self):
         return self.pch_code
 
@@ -280,6 +283,15 @@ class Cfg:
         self.logger.log("\tVID: {:04X}".format(self.pch_vid))
         self.logger.log("\tDID: {:04X}".format(self.pch_did))
         self.logger.log("\tRID: {:02X}".format(self.pch_rid))
+
+    def print_supported_chipsets(self):
+        logger().log("\nSupported platforms:\n")
+        logger().log("VID     | DID     | Name           | Code   | Long Name")
+        logger().log("-------------------------------------------------------------------------------------")
+        for _vid in sorted(self.chipset_dictionary.keys()):
+            for _did in sorted(self.chipset_dictionary[_vid]):
+                for item in self.chipset_dictionary[_vid][_did]:
+                    logger().log(" {:-#06x} | {:-#06x} | {:14} | {:6} | {:40}".format(_vid, _did, item['name'], item['code'].lower(), item['longname']))
 
     #
     # Load chipsec/cfg/<code>.py configuration file for platform <code>

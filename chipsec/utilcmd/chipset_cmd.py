@@ -44,7 +44,7 @@ class PlatformCommand(BaseCommand):
 
     def run(self):
         try:
-            self.cs.print_supported_chipsets()
+            self.cs.Cfg.print_supported_chipsets()
             self.logger.log("")
             self.cs.Cfg.print_platform_info()
             self.cs.Cfg.print_pch_info()

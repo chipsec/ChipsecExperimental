@@ -22,10 +22,6 @@
 Contains platform identification functions
 """
 
-# import os
-# import fnmatch
-# import xml.etree.ElementTree as ET
-
 from chipsec.helper.oshelper import OsHelper
 from chipsec.hal import cpu, io, iobar, mmio, msgbus, msr, pci, physmem, ucode, igd
 from chipsec.hal.pci import PCI_HDR_RID_OFF
@@ -37,14 +33,9 @@ from chipsec.defines import is_all_ones, ARCH_VID
 
 from chipsec.config import Cfg, CHIPSET_FAMILY
 
-# import chipsec.file
-
-# import importlib
-# import traceback
 
 # DEBUG Flags
 QUIET_PCI_ENUM = True
-# LOAD_COMMON = True
 CONSISTENCY_CHECKING = False
 
 
@@ -61,32 +52,9 @@ class RegisterType:
     IMA = 'indirect'
 
 
-# class Cfg:
-#     def __init__(self):
-#         self.CONFIG_PCI = {}
-#         self.REGISTERS = {}
-#         self.MMIO_BARS = {}
-#         self.IO_BARS = {}
-#         self.IMA_REGISTERS = {}
-#         self.MEMORY_RANGES = {}
-#         self.CONTROLS = {}
-#         self.BUS = {}
-#         self.LOCKS = {}
-#         self.LOCKEDBY = {}
-#         self.XML_CONFIG_LOADED = False
-
-
 ##################################################################################
 # Functionality defining current chipset
 ##################################################################################
-
-# CHIPSET_ID_UNKNOWN = 0
-
-# CHIPSET_CODE_UNKNOWN = ''
-
-# CHIPSET_FAMILY = {}
-
-# PCH_CODE_PREFIX = 'PCH_'
 
 PCH_ADDRESS = {
     # Intel: 0:1F.0
@@ -226,26 +194,14 @@ class Chipset:
     def destroy(self, start_driver):
         self.helper.stop(start_driver)
 
-    def get_chipset_code(self):
-        return self.Cfg.code
-
-    def get_pch_code(self):
-        return self.Cfg.pch_code
-
-    def get_chipset_name(self, id):
-        return self.Cfg.longname
-
-    def get_pch_name(self, id):
-        return self.Cfg.pch_longname
-
     def is_core(self):
-        return self.get_chipset_code() in CHIPSET_FAMILY["core"]
+        return self.Cfg.get_chipset_code() in CHIPSET_FAMILY["core"]
 
     def is_server(self):
-        return self.get_chipset_code() in CHIPSET_FAMILY["xeon"]
+        return self.Cfg.get_chipset_code() in CHIPSET_FAMILY["xeon"]
 
     def is_atom(self):
-        return self.get_chipset_code() in CHIPSET_FAMILY["atom"]
+        return self.Cfg.get_chipset_code() in CHIPSET_FAMILY["atom"]
 
     def is_intel(self) -> bool:
         """Returns true if platform Vendor ID equals Intel VID"""
@@ -261,15 +217,6 @@ class Chipset:
 
     def use_native_api(self):
         return self.helper.use_native_api()
-
-    def print_supported_chipsets(self):
-        logger().log("\nSupported platforms:\n")
-        logger().log("VID     | DID     | Name           | Code   | Long Name")
-        logger().log("-------------------------------------------------------------------------------------")
-        for _vid in sorted(self.Cfg.chipset_dictionary.keys()):
-            for _did in sorted(self.Cfg.chipset_dictionary[_vid]):
-                for item in self.Cfg.chipset_dictionary[_vid][_did]:
-                    logger().log(" {:-#06x} | {:-#06x} | {:14} | {:6} | {:40}".format(_vid, _did, item['name'], item['code'].lower(), item['longname']))
 
     def init_cfg_bus(self):
         if logger().DEBUG:
