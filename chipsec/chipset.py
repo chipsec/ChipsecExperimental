@@ -63,11 +63,6 @@ PCH_ADDRESS = {
     ARCH_VID.AMD: (0, 0x14, 3)
 }
 
-try:
-    from chipsec.custom_chipsets import *
-except ImportError:
-    pass
-
 
 class Chipset:
 
