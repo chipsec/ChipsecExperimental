@@ -208,7 +208,7 @@ class pcie_fuzz(BaseModule):
         self.logger.log("[*] About to fuzz the following PCIe devices..")
         print_pci_devices(pcie_devices)
 
-        for (b, d, f, _, _) in pcie_devices:
+        for (b, d, f, _, _, _) in pcie_devices:
             self.logger.log("[+] Fuzzing device {:02X}:{:02X}.{:X}".format(b, d, f))
             self.fuzz_pcie_device(b, d, f)
 

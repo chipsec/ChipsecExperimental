@@ -218,7 +218,7 @@ def get_device_name_by_didvid(vid, did):
 def print_pci_devices(_devices):
     logger().log("BDF     | VID:DID   | Vendor                       | Device")
     logger().log("-------------------------------------------------------------------------")
-    for (b, d, f, vid, did) in _devices:
+    for (b, d, f, vid, did, _) in _devices:
         vendor_name = get_vendor_name_by_vid(vid)
         device_name = get_device_name_by_didvid(vid, did)
         logger().log("{:02X}:{:02X}.{:X} | {:04X}:{:04X} | {:28} | {}".format(b, d, f, vid, did, vendor_name, device_name))
@@ -283,7 +283,7 @@ class Pci:
     # Enumerating PCI devices and dumping configuration space
     #
 
-    def enumerate_devices(self, bus=None, device=None, function=None):
+    def enumerate_devices(self, bus=None, device=None, function=None, spec=True):
         devices = []
 
         if bus is not None:
@@ -299,16 +299,19 @@ class Pci:
         else:
             func_range = range(8)
 
-        for b, d, f in itertools.product(bus_range, dev_range, func_range):
-            try:
-                did_vid = self.read_dword(b, d, f, 0x0)
-                if 0xFFFFFFFF != did_vid:
-                    vid = did_vid & 0xFFFF
-                    did = (did_vid >> 16) & 0xFFFF
-                    devices.append((b, d, f, vid, did))
-            except OsHelperError:
-                if logger().HAL:
-                    logger().log("[pci] unable to access B/D/F: {:d}/{:d}/{:d}".format(b, d, f))
+        for b, d in itertools.product(bus_range, dev_range):
+            for f in func_range:
+                try:
+                    did_vid = self.read_dword(b, d, f, 0x0)
+                    if 0xFFFFFFFF != did_vid:
+                        vid = did_vid & 0xFFFF
+                        did = (did_vid >> 16) & 0xFFFF
+                        rid = self.read_byte(b, d, f, 0x8)
+                        devices.append((b, d, f, vid, did, rid))
+                    elif f == 0 and spec:
+                        break
+                except OsHelperError:
+                    self.logger.log_hal("[pci] unable to access B/D/F: {:d}/{:d}/{:d}".format(b, d, f))
         return devices
 
     def dump_pci_config(self, bus, device, function):
@@ -322,7 +325,7 @@ class Pci:
     def print_pci_config_all(self):
         logger().log("[pci] enumerating available PCI devices...")
         pci_devices = self.enumerate_devices()
-        for (b, d, f, vid, did) in pci_devices:
+        for (b, d, f, vid, did, rid) in pci_devices:
             cfg_buf = self.dump_pci_config(b, d, f)
             logger().log("\n[pci] PCI device {:02X}:{:02X}.{:02X} configuration:".format(b, d, f))
             pretty_print_hex_buffer(cfg_buf)
@@ -420,7 +423,7 @@ class Pci:
         pci_xroms = []
         logger().log("[pci] enumerating available PCI devices...")
         pci_devices = self.enumerate_devices()
-        for (b, d, f, vid, did) in pci_devices:
+        for (b, d, f, vid, did, rid) in pci_devices:
             exists, xrom = self.find_XROM(b, d, f, try_init, xrom_dump, xrom_addr)
             if exists:
                 xrom.vid = vid
