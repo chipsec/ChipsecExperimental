@@ -74,8 +74,8 @@ def parse_args(argv: Sequence[str]) -> Optional[Dict[str, Any]]:
     options.add_argument('-vv', '--vverbose', help='very verbose HAL debug mode', action='store_true')
     adv_options = parser.add_argument_group('Advanced Options')
     adv_options.add_argument('-p', '--platform', dest='_platform', help='explicitly specify platform code',
-                             choices=chipset.cs().chipset_codes, type=str.upper)
-    adv_options.add_argument('--pch', dest='_pch', help='explicitly specify PCH code', choices=chipset.cs().pch_codes, type=str.upper)
+                             choices=chipset.cs().Cfg.proc_codes, type=str.upper)
+    adv_options.add_argument('--pch', dest='_pch', help='explicitly specify PCH code', choices=chipset.cs().Cfg.pch_codes, type=str.upper)
     adv_options.add_argument('-n', '--no_driver', dest='_no_driver', action='store_true',
                              help="chipsec won't need kernel mode functions so don't load chipsec driver")
     adv_options.add_argument('-i', '--ignore_platform', dest='_unknownPlatform', action='store_false',

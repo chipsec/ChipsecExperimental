@@ -73,8 +73,9 @@ class Chipset:
             self.helper = helper
 
         self.Cfg = Cfg()
-        self.Cfg.init_xml_configuration()
-
+        #self.Cfg.init_xml_configuration()
+        self.Cfg.load_parsers()
+        self.Cfg.load_platform_info()
         #
         # Initializing 'basic primitive' HAL components
         # (HAL components directly using native OS helper functionality)

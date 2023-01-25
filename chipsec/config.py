@@ -18,17 +18,21 @@
 # chipsec@intel.com
 #
 
-import collections
-import os
-import xml.etree.ElementTree as ET
-from chipsec.logger import logger
-
-from chipsec.defines import is_hex
-import chipsec.file
-
+from collections import namedtuple
+from fnmatch import fnmatch
 import importlib
+import os
+import re
+import xml.etree.ElementTree as ET
+from chipsec.defines import is_hex
+from chipsec.exceptions import CSConfigError
+from chipsec.file import get_main_dir
+from chipsec.logger import logger
+from chipsec.exceptions import DeviceNotFoundError
+from chipsec.parsers import Stage
+from chipsec.parsers import stage_info, config_data
+
 import traceback
-import fnmatch
 
 LOAD_COMMON = True
 
@@ -39,6 +43,8 @@ CHIPSET_CODE_UNKNOWN = ''
 CHIPSET_FAMILY = {}
 
 PCH_CODE_PREFIX = 'PCH_'
+
+PROC_FAMILY = {}
 
 
 class Cfg:
@@ -56,6 +62,18 @@ class Cfg:
         self.LOCKEDBY = {}
         self.XML_CONFIG_LOADED = False
 
+        self.proc_dictionary = {}
+        self.proc_codes = set()
+        self.pch_dictionary = {}
+        self.pch_codes = set()
+        self.device_dictionary = {}
+        self.platform_xml_files = {}
+        self.load_list = []
+        self.load_extra = []
+        self.parsers = []
+
+        self.detection_dictionary = {}
+
         # Initialize CPU and PCH artifacts
         self.vid = 0xFFFF
         self.did = 0xFFFF
@@ -69,95 +87,12 @@ class Cfg:
         self.pch_longname = 'Unrecognized PCH'
         self.req_pch = False
 
-    def init_xml_configuration(self):
-        # CAVEAT: this method may be called before command-line flags have been
-        # parsed. In that case, logger().DEBUG will be False even if `-d` is
-        # used. Switch it to True in logger.py directly if you need to debug
-        # this function.
-        self.pch_dictionary = {}
-        self.chipset_dictionary = {}
-        self.device_dictionary = {}
-        self.chipset_codes = {}
-        self.pch_codes = {}
-        self.device_code = []
-        self.detection_dictionary = {}
-
-        # find VID
-        _cfg_path = os.path.join(chipsec.file.get_main_dir(), 'chipsec', 'cfg')
-        VID = [f for f in os.listdir(_cfg_path) if os.path.isdir(os.path.join(_cfg_path, f)) and is_hex(f)]
-        # create dictionaries
-        for vid in VID:
-            if logger().DEBUG:
-                logger().log("[*] Entering directory '{}'..".format(os.path.join(_cfg_path, vid)))
-            self.chipset_dictionary[int(vid, 16)] = collections.defaultdict(list)
-            self.pch_dictionary[int(vid, 16)] = collections.defaultdict(list)
-            self.device_dictionary[int(vid, 16)] = collections.defaultdict(list)
-            for fxml in os.listdir(os.path.join(_cfg_path, vid)):
-                if logger().DEBUG:
-                    logger().log("[*] looking for platform config in '{}'..".format(fxml))
-                tree = ET.parse(os.path.join(_cfg_path, vid, fxml))
-                root = tree.getroot()
-                for _cfg in root.iter('configuration'):
-                    if 'platform' not in _cfg.attrib:
-                        if logger().DEBUG:
-                            logger().log("[*] skipping common platform config '{}'..".format(fxml))
-                        continue
-                    elif _cfg.attrib['platform'].lower().startswith('pch'):
-                        if logger().DEBUG:
-                            logger().log("[*] found PCH config at '{}'..".format(fxml))
-                        if not _cfg.attrib['platform'].upper() in self.pch_codes.keys():
-                            self.pch_codes[_cfg.attrib['platform'].upper()] = {}
-                            self.pch_codes[_cfg.attrib['platform'].upper()]['vid'] = int(vid, 16)
-                        mdict = self.pch_dictionary[int(vid, 16)]
-                        cdict = self.pch_codes[_cfg.attrib['platform'].upper()]
-                    elif _cfg.attrib['platform'].upper():
-                        if logger().DEBUG:
-                            logger().log("[*] found platform config from '{}'..".format(fxml))
-                        if not _cfg.attrib['platform'].upper() in self.chipset_codes.keys():
-                            self.chipset_codes[_cfg.attrib['platform'].upper()] = {}
-                            self.chipset_codes[_cfg.attrib['platform'].upper()]['vid'] = int(vid, 16)
-                        mdict = self.chipset_dictionary[int(vid, 16)]
-                        cdict = self.chipset_codes[_cfg.attrib['platform'].upper()]
-                    else:
-                        continue
-                    if logger().DEBUG:
-                        logger().log("[*] Populating configuration dictionary..")
-                    for _info in _cfg.iter('info'):
-                        if 'family' in _info.attrib:
-                            family = _info.attrib['family'].lower()
-                            if family not in CHIPSET_FAMILY:
-                                CHIPSET_FAMILY[family] = []
-                            CHIPSET_FAMILY[family].append(_cfg.attrib['platform'].upper())
-                        if 'detection_value' in _info.attrib:
-                            for dv in list(_info.attrib['detection_value'].split(',')):
-                                if dv[-1].upper() == 'X':
-                                    rdv = int(dv[:-1], 16) << 4  # Assume valid hex value with last nibble removed
-                                    for rdv_value in range(rdv, rdv + 0x10):
-                                        self.detection_dictionary[format(rdv_value, 'X')] = _cfg.attrib['platform'].upper()
-                                elif '-' in dv:
-                                    rdv = dv.split('-')
-                                    for rdv_value in range(int(rdv[0], 16), int(rdv[1], 16) + 1):  # Assume valid hex values
-                                        self.detection_dictionary[format(rdv_value, 'X')] = _cfg.attrib['platform'].upper()
-                                else:
-                                    self.detection_dictionary[dv.strip().upper()] = _cfg.attrib['platform'].upper()
-                        if _info.find('sku') is not None:
-                            _det = ""
-                            _did = ""
-                            for _sku in _info.iter('sku'):
-                                _did = int(_sku.attrib['did'], 16)
-                                del _sku.attrib['did']
-                                mdict[_did].append(_sku.attrib)
-                                if "detection_value" in _sku.attrib.keys():
-                                    _det = _sku.attrib['detection_value']
-                            if _did == "":
-                                if logger().DEBUG:
-                                    logger().log_warning("No SKU found in configuration")
-                            cdict['did'] = _did
-                            cdict['detection_value'] = _det
-            for cc in self.chipset_codes:
-                globals()["CHIPSET_CODE_{}".format(cc.upper())] = cc.upper()
-            for pc in self.pch_codes:
-                globals()["PCH_CODE_{}".format(pc[4:].upper())] = pc.upper()
+    ###
+    # Private functions
+    ###
+    def _make_hex_key_str(self, int_val):
+        str_val = '{:04X}'.format(int_val)
+        return str_val
 
     def platform_detection(self, platform_code, req_pch_code, cpuid, vid, did, rid, pch_vid, pch_did, pch_rid):
         # initialize chipset values to unknown
@@ -176,16 +111,16 @@ class Cfg:
 
         if platform_code is None:
             # platform code was not passed in try to determine based upon cpu id
-            vid_found = vid in self.chipset_dictionary
-            did_found = did in self.chipset_dictionary[vid]
+            vid_found = vid in self.proc_dictionary
+            did_found = did in self.proc_dictionary[vid]
             # check if multiple platform found by [vid][did]
-            multiple_found = len(self.chipset_dictionary[vid][did]) > 1
-            logger().log_debug("read out cpuid:{}, platforms found per vid & did:{}, multiple:{}".format(cpuid, self.chipset_dictionary[vid][did], multiple_found))
+            multiple_found = len(self.proc_dictionary[vid][did]) > 1
+            logger().log_debug("read out cpuid:{}, platforms found per vid & did:{}, multiple:{}".format(cpuid, self.proc_dictionary[vid][did], multiple_found))
             for i in self.detection_dictionary.keys():
                 logger().log_debug("cpuid detection val:{}, plat:{}".format(i, self.detection_dictionary[i]))
             cpuid_found = cpuid in self.detection_dictionary.keys()
             if vid_found and did_found and multiple_found and cpuid_found:
-                for item in self.chipset_dictionary[vid][did]:
+                for item in self.proc_dictionary[vid][did]:
                     if self.detection_dictionary[cpuid] == item['code']:
                         # matched processor with detection value, cpuid used to decide the correct platform
                         _unknown_platform = False
@@ -198,7 +133,7 @@ class Cfg:
                         break
             elif vid_found and did_found:
                 _unknown_platform = False
-                data_dict = self.chipset_dictionary[vid][did][0]
+                data_dict = self.proc_dictionary[vid][did][0]
                 self.code = data_dict['code'].upper()
                 self.longname = data_dict['longname']
                 self.vid = vid
@@ -212,11 +147,11 @@ class Cfg:
                 self.did = did
                 self.rid = rid
 
-        elif platform_code in self.chipset_codes:
+        elif platform_code in self.proc_codes:
             # Check if platform code passed in is valid and override configuration
             _unknown_platform = False
-            self.vid = self.chipset_codes[platform_code]['vid']
-            self.did = self.chipset_codes[platform_code]['did']
+            #self.vid = self.proc_codes[platform_code]['vid']
+            #self.did = self.proc_codes[platform_code]['did']
             self.rid = 0x00
             self.code = platform_code
             self.longname = platform_code
@@ -228,8 +163,8 @@ class Cfg:
         if req_pch_code is not None:
             # Check if pch code passed in is valid
             if req_pch_code in self.pch_codes:
-                self.pch_vid = self.pch_codes[req_pch_code]['vid']
-                self.pch_did = self.pch_codes[req_pch_code]['did']
+                #self.pch_vid = self.pch_codes[req_pch_code]['vid']
+                #self.pch_did = self.pch_codes[req_pch_code]['did']
                 self.pch_rid = 0x00
                 self.pch_code = req_pch_code
                 self.pch_longname = req_pch_code
@@ -288,9 +223,9 @@ class Cfg:
         logger().log("\nSupported platforms:\n")
         logger().log("VID     | DID     | Name           | Code   | Long Name")
         logger().log("-------------------------------------------------------------------------------------")
-        for _vid in sorted(self.chipset_dictionary.keys()):
-            for _did in sorted(self.chipset_dictionary[_vid]):
-                for item in self.chipset_dictionary[_vid][_did]:
+        for _vid in sorted(self.proc_dictionary.keys()):
+            for _did in sorted(self.proc_dictionary[_vid]):
+                for item in self.proc_dictionary[_vid][_did]:
                     logger().log(" {:-#06x} | {:-#06x} | {:14} | {:6} | {:40}".format(_vid, _did, item['name'], item['code'].lower(), item['longname']))
 
     #
@@ -327,7 +262,7 @@ class Cfg:
     def load_xml_configuration(self):
         # Create a sorted config file list (xml only)
         _cfg_files = []
-        _cfg_path = os.path.join(chipsec.file.get_main_dir(), 'chipsec/cfg', "{:04X}".format(self.vid))
+        _cfg_path = os.path.join(get_main_dir(), 'chipsec/cfg', "{:04X}".format(self.vid))
         for root, subdirs, files in os.walk(_cfg_path):
             _cfg_files.extend([os.path.join(root, x) for x in files if fnmatch.fnmatch(x, '*.xml')])
         _cfg_files.sort()
@@ -345,7 +280,7 @@ class Cfg:
 
         # Locate configuration files from all other XML files recursively (if any) excluding other platform configuration files.
             platform_files = []
-            for plat in [c.lower() for c in self.chipset_codes]:
+            for plat in [c.lower() for c in self.proc_codes]:
                 platform_files.extend([x for x in _cfg_files if fnmatch.fnmatch(os.path.basename(x), '{}*.xml'.format(plat)) or os.path.basename(x).startswith(PCH_CODE_PREFIX.lower())])
             loaded_files.extend([x for x in _cfg_files if x not in loaded_files and x not in platform_files])
 
@@ -461,3 +396,161 @@ class Cfg:
             if logger().DEBUG:
                 logger().log("[*] loading locks..")
             self.populate_cfg_type(_cfg, 'locks', self.Cfg.LOCKS, 'lock')
+
+    ###
+    # Private config functions
+    ###
+    def _get_stage_parsers(self, stage):
+        handlers = {}
+        for parser in self.parsers:
+            if parser.get_stage() != stage:
+                continue
+            handlers.update(parser.get_metadata())
+        return handlers
+
+    def _update_supported_platforms(self, conf_data, data):
+        if not data:
+            return
+        if data.family and data.proc_code:
+            fam = data.family.lower()
+            if fam not in PROC_FAMILY:
+                PROC_FAMILY[fam] = []
+            PROC_FAMILY[fam].append(data.proc_code)
+        if data.proc_code:
+            dest = self.proc_dictionary
+            self.proc_codes.add(data.proc_code)
+            if data.proc_code not in self.platform_xml_files:
+                self.platform_xml_files[data.proc_code] = []
+            self.platform_xml_files[data.proc_code].append(conf_data)
+        elif data.pch_code:
+            dest = self.pch_dictionary
+            self.pch_codes.add(data.pch_code)
+            if data.pch_code not in self.platform_xml_files:
+                self.platform_xml_files[data.pch_code] = []
+            self.platform_xml_files[data.pch_code].append(conf_data)
+        else:
+            dest = self.device_dictionary
+            if 'devices' not in self.platform_xml_files:
+                self.platform_xml_files['devices'] = []
+            self.platform_xml_files['devices'].append(conf_data)
+        if data.vid_str not in dest:
+            dest[data.vid_str] = {}
+        for sku in data.sku_list:
+            did_str = self._make_hex_key_str(sku['did'])
+            if did_str not in dest[data.vid_str]:
+                dest[data.vid_str][did_str] = []
+            sku['req_pch'] = data.req_pch
+            sku['detect'] = data.detect_vals
+            dest[data.vid_str][did_str].append(sku)
+
+    def _find_sku_data(self, dict_ref, code, detect_val=None):
+        for vid_str in dict_ref:
+            for did_str in dict_ref[vid_str]:
+                for sku in dict_ref[vid_str][did_str]:
+                    if code and sku['code'] != code.upper():
+                        continue
+                    if not code:
+                        if vid_str not in self.CONFIG_PCI_RAW:
+                            continue
+                        if did_str not in self.CONFIG_PCI_RAW[vid_str]:
+                            continue
+                        if sku['detect'] and detect_val and detect_val not in sku['detect']:
+                            continue
+                    return sku
+        return None
+
+    def _get_config_iter(self, fxml):
+        tree = ET.parse(fxml.xml_file)
+        root = tree.getroot()
+        return root.iter('configuration')
+
+    def _load_sec_configs(self, load_list, stage):
+        stage_str = 'core' if stage == Stage.CORE_SUPPORT else 'custom'
+        tag_handlers = self._get_stage_parsers(stage)
+        if not load_list or not tag_handlers:
+            return
+        for fxml in load_list:
+            self.logger.log_debug('[*] Loading {} config data: [{}] - {}'.format(stage_str,
+                                                                                 fxml.dev_name,
+                                                                                 fxml.xml_file))
+            if not os.path.isfile(fxml.xml_file):
+                self.logger.log_debug('[-] File not found: {}'.format(fxml.xml_file))
+                continue
+            for config_root in self._get_config_iter(fxml):
+                for tag in tag_handlers:
+                    self.logger.log_debug('[*] Loading {} data...'.format(tag))
+                    for node in config_root.iter(tag):
+                        tag_handlers[tag](node, fxml)
+
+    ###
+    # Config loading functions
+    ###
+    def load_parsers(self):
+        parser_path = os.path.join(get_main_dir(), 'chipsec', 'cfg', 'parsers')
+        if not os.path.isdir(parser_path):
+            raise CSConfigError('Unable to locate configuration parsers: {}'.format(parser_path))
+        parser_files = [f.name for f in sorted(os.scandir(parser_path), key=lambda x: x.name)
+                        if fnmatch(f.name, '*.py') and not fnmatch(f.name, '__init__.py')]
+        for parser in parser_files:
+            parser_name = '.'.join(['chipsec', 'cfg', 'parsers', os.path.splitext(parser)[0]])
+            self.logger.log_debug('[*] Importing parser: {}'.format(parser_name))
+            try:
+                module = importlib.import_module(parser_name)
+            except Exception:
+                self.logger.log_debug('[*] Failed to import {}'.format(parser_name))
+                continue
+            if not hasattr(module, 'parsers'):
+                self.logger.log_debug('[*] Missing parsers variable: {}'.format(parser))
+                continue
+            for obj in module.parsers:
+                try:
+                    parser_obj = obj(self)
+                except Exception:
+                    self.logger.log_debug('[*] Failed to create object: {}'.format(parser))
+                    continue
+                parser_obj.startup()
+                self.parsers.append(parser_obj)
+
+    def add_extra_configs(self, path, filename=None, loadnow=False):
+        config_path = os.path.join(get_main_dir(), 'chipsec', 'cfg', path)
+        if os.path.isdir(config_path) and filename is None:
+            self.load_extra = [config_data(None, None, f.path) for f in sorted(os.scandir(config_path), key=lambda x: x.name)
+                            if fnmatch(f.name, '*.xml')]
+        elif os.path.isdir(config_path) and filename:
+            self.load_extra = [config_data(None, None, f.path) for f in sorted(os.scandir(config_path), key=lambda x: x.name)
+                            if fnmatch(f.name, '*.xml') and fnmatch(f.name, filename)]
+        else:
+            raise CSConfigError('Unable to locate configuration file(s): {}'.format(config_path.xml_file))
+        if loadnow and self.load_extra:
+            self._load_sec_configs(self.load_extra, Stage.EXTRA)
+
+    def load_platform_info(self):
+        tag_handlers = self._get_stage_parsers(Stage.GET_INFO)
+        cfg_path = os.path.join(get_main_dir(), 'chipsec', 'cfg')
+
+        # Locate all root configuration files
+        cfg_files = []
+        cfg_vids = [f.name for f in os.scandir(cfg_path) if f.is_dir() and is_hex(f.name)]
+        for vid_str in cfg_vids:
+            root_path = os.path.join(cfg_path, vid_str)
+            cfg_files.extend([config_data(vid_str, None, f.path)
+                             for f in sorted(os.scandir(root_path), key=lambda x: x.name)
+                             if fnmatch(f.name, '*.xml')])
+
+        # Process platform info data and generate lookup tables
+        for fxml in cfg_files:
+            self.logger.log_debug('[*] Processing platform config information: {}'.format(fxml.xml_file))
+            for config_root in self._get_config_iter(fxml):
+                stage_data = stage_info(fxml.vid_str, config_root)
+                for tag in tag_handlers:
+                    for node in config_root.iter(tag):
+                        data = tag_handlers[tag](node, stage_data)
+                        if not data:
+                            continue
+                        self._update_supported_platforms(fxml, data)
+
+        # Create platform global data
+        for cc in self.proc_codes:
+            globals()["CHIPSET_CODE_{}".format(cc.upper())] = cc.upper()
+        for pc in self.pch_codes:
+            globals()["PCH_CODE_{}".format(pc[4:].upper())] = pc.upper()
