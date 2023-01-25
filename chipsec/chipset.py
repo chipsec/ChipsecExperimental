@@ -238,12 +238,6 @@ class Chipset:
     def get_pch_name(self, id):
         return self.Cfg.pch_longname
 
-    def print_chipset(self):
-        logger().log("[*] Platform: {}\n          CPUID: {}\n           VID: {:04X}\n          DID: {:04X}\n          RID: {:02X}".format(self.Cfg.longname, self.get_cpuid(), self.Cfg.vid, self.Cfg.did, self.Cfg.rid))
-
-    def print_pch(self):
-        logger().log("[*] PCH     : {}\n          VID: {:04X}\n          DID: {:04X}\n          RID: {:02X}".format(self.Cfg.pch_longname, self.Cfg.pch_vid, self.Cfg.pch_did, self.Cfg.pch_rid))
-
     def is_core(self):
         return self.get_chipset_code() in CHIPSET_FAMILY["core"]
 

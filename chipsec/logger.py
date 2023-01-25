@@ -405,16 +405,9 @@ class Logger:
         self.log(f'[CHIPSEC] OS      : {system} {release} {version} {machine}')
         self.log(f'[CHIPSEC] Python  : {python_version} ({python_arch})')
         self.log(f'[CHIPSEC] Helper  : {helper_name} ({driver_path})')
-        self.log(f'[CHIPSEC] Platform: {cs.Cfg.longname}')
-        self.log(f'[CHIPSEC]    CPUID: {cs.get_cpuid()}')
-        self.log(f'[CHIPSEC]      VID: {cs.Cfg.vid:04X}')
-        self.log(f'[CHIPSEC]      DID: {cs.Cfg.did:04X}')
-        self.log(f'[CHIPSEC]      RID: {cs.Cfg.rid:02X}')
-        if not cs.is_atom():
-            self.log(f'[CHIPSEC] PCH     : {cs.Cfg.pch_longname}')
-            self.log(f'[CHIPSEC]      VID: {cs.Cfg.pch_vid:04X}')
-            self.log(f'[CHIPSEC]      DID: {cs.Cfg.pch_did:04X}')
-            self.log(f'[CHIPSEC]      RID: {cs.Cfg.pch_rid:02X}')
+        self.log('f{cs.Cfg.print_platform_info()}')
+        if cs.Cfg.is_pch_req():
+            self.log(f'{cs.Cfg.print_pch_info()}')
 
         if not is_python_64 and machine.endswith('64'):
             self.log_warning('Python architecture (32-bit) is different from OS architecture (64-bit)')

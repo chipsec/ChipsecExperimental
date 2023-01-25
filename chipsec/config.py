@@ -43,6 +43,7 @@ PCH_CODE_PREFIX = 'PCH_'
 
 class Cfg:
     def __init__(self):
+        self.logger = logger()
         self.CONFIG_PCI = {}
         self.REGISTERS = {}
         self.MMIO_BARS = {}
@@ -160,6 +161,7 @@ class Cfg:
 
     def platform_detection(self, platform_code, req_pch_code, cpuid, vid, did, rid, pch_vid, pch_did, pch_rid):
         # initialize chipset values to unknown
+        self.cpuid = cpuid
         _unknown_platform = True
         self.longname = 'UnknownPlatform'
         self.vid = 0xFFFF
@@ -265,6 +267,19 @@ class Cfg:
 
     def is_pch_req(self):
         return self.req_pch
+
+    def print_platform_info(self):
+        self.logger.log("Platform: {}".format(self.longname))
+        self.logger.log(f'\tCPUID: {self.cpuid}')
+        self.logger.log("\tVID: {:04X}".format(self.vid))
+        self.logger.log("\tDID: {:04X}".format(self.did))
+        self.logger.log("\tRID: {:02X}".format(self.rid))
+
+    def print_pch_info(self):
+        self.logger.log("Platform: {}".format(self.pch_longname))
+        self.logger.log("\tVID: {:04X}".format(self.pch_vid))
+        self.logger.log("\tDID: {:04X}".format(self.pch_did))
+        self.logger.log("\tRID: {:02X}".format(self.pch_rid))
 
     #
     # Load chipsec/cfg/<code>.py configuration file for platform <code>
