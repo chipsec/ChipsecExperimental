@@ -40,11 +40,10 @@ CHIPSET_ID_UNKNOWN = 0
 
 CHIPSET_CODE_UNKNOWN = ''
 
-CHIPSET_FAMILY = {}
+PROC_FAMILY = {}
 
 PCH_CODE_PREFIX = 'PCH_'
 
-PROC_FAMILY = {}
 
 
 class Cfg:
@@ -71,6 +70,7 @@ class Cfg:
         self.load_list = []
         self.load_extra = []
         self.parsers = []
+        self.cpuid = None
 
         self.detection_dictionary = {}
 
@@ -94,105 +94,30 @@ class Cfg:
         str_val = '{:04X}'.format(int_val)
         return str_val
 
-    def platform_detection(self, platform_code, req_pch_code, cpuid, vid, did, rid, pch_vid, pch_did, pch_rid):
-        # initialize chipset values to unknown
-        self.cpuid = cpuid
-        _unknown_platform = True
-        self.longname = 'UnknownPlatform'
-        self.vid = 0xFFFF
-        self.did = 0xFFFF
-        self.rid = 0xFF
-        # initialize pch values to unknown/default
-        _unknown_pch = True
-        self.pch_longname = 'Default PCH'
-        self.pch_vid = 0xFFFF
-        self.pch_did = 0xFFFF
-        self.pch_rid = 0xFF
-
-        if platform_code is None:
-            # platform code was not passed in try to determine based upon cpu id
-            vid_found = vid in self.proc_dictionary
-            did_found = did in self.proc_dictionary[vid]
-            # check if multiple platform found by [vid][did]
-            multiple_found = len(self.proc_dictionary[vid][did]) > 1
-            logger().log_debug("read out cpuid:{}, platforms found per vid & did:{}, multiple:{}".format(cpuid, self.proc_dictionary[vid][did], multiple_found))
-            for i in self.detection_dictionary.keys():
-                logger().log_debug("cpuid detection val:{}, plat:{}".format(i, self.detection_dictionary[i]))
-            cpuid_found = cpuid in self.detection_dictionary.keys()
-            if vid_found and did_found and multiple_found and cpuid_found:
-                for item in self.proc_dictionary[vid][did]:
-                    if self.detection_dictionary[cpuid] == item['code']:
-                        # matched processor with detection value, cpuid used to decide the correct platform
-                        _unknown_platform = False
-                        data_dict = item
-                        self.code = data_dict['code'].upper()
-                        self.longname = data_dict['longname']
-                        self.vid = vid
-                        self.did = did
-                        self.rid = rid
-                        break
-            elif vid_found and did_found:
-                _unknown_platform = False
-                data_dict = self.proc_dictionary[vid][did][0]
-                self.code = data_dict['code'].upper()
-                self.longname = data_dict['longname']
-                self.vid = vid
-                self.did = did
-                self.rid = rid
-            elif cpuid_found:
-                _unknown_platform = False
-                self.code = self.detection_dictionary[cpuid]
-                self.longname = self.detection_dictionary[cpuid]
-                self.vid = vid
-                self.did = did
-                self.rid = rid
-
-        elif platform_code in self.proc_codes:
-            # Check if platform code passed in is valid and override configuration
-            _unknown_platform = False
-            #self.vid = self.proc_codes[platform_code]['vid']
-            #self.did = self.proc_codes[platform_code]['did']
-            self.rid = 0x00
-            self.code = platform_code
-            self.longname = platform_code
-            msg = 'Platform: Actual values: VID = 0x{:04X}, DID = 0x{:04X}, RID = 0x{:02X}'.format(vid, did, rid)
-            if cpuid:
-                msg += ', CPUID = 0x{}'.format(cpuid)
-            logger().log("[CHIPSEC] {}".format(msg))
-
-        if req_pch_code is not None:
-            # Check if pch code passed in is valid
-            if req_pch_code in self.pch_codes:
-                #self.pch_vid = self.pch_codes[req_pch_code]['vid']
-                #self.pch_did = self.pch_codes[req_pch_code]['did']
-                self.pch_rid = 0x00
-                self.pch_code = req_pch_code
-                self.pch_longname = req_pch_code
-                _unknown_pch = False
-                msg = 'PCH     : Actual values: VID = 0x{:04X}, DID = 0x{:04X}, RID = 0x{:02X}'.format(pch_vid, pch_did, pch_rid)
-                logger().log("[CHIPSEC] {}".format(msg))
-        elif (pch_vid in self.pch_dictionary.keys()) and (pch_did in self.pch_dictionary[pch_vid].keys()):
-            # Check if pch did for device is in configuration
-            self.pch_vid = pch_vid
-            self.pch_did = pch_did
-            self.pch_rid = pch_rid
-            pch_list = self.pch_dictionary[self.pch_vid][self.pch_did]
-            if len(pch_list) > 1:
-                logger().log("[!]       Multiple PCHs contain the same DID. Using first in the list.")
-            data_dict = pch_list[0]
-            self.pch_code = data_dict['code']
-            self.pch_longname = data_dict['longname']
-            _unknown_pch = False
-        else:
-            self.pch_vid = pch_vid
-            self.pch_did = pch_did
-            self.pch_rid = pch_rid
-
-        if not self.req_pch:
-            self.pch_longname = self.longname
-            _unknown_pch = False
-
-        return (_unknown_platform, _unknown_pch)
+    ###
+    # PCI device tree enumeration
+    ###
+    def set_pci_data(self, enum_devices):
+        if not hasattr(self, 'CONFIG_PCI_RAW'):
+            setattr(self, 'CONFIG_PCI_RAW', {})
+        for b, d, f, vid, did, rid in enum_devices:
+            vid_str = self._make_hex_key_str(vid)
+            did_str = self._make_hex_key_str(did)
+            pci_data = {
+                'bus': [b],
+                'dev': d,
+                'fun': f,
+                'vid': vid,
+                'did': did,
+                'rid': rid}
+            #if vid_str not in self.CONFIG_PCI_RAW:
+            #    self._create_vid(vid_str)
+            if vid_str not in self.CONFIG_PCI_RAW:
+               self.CONFIG_PCI_RAW[vid_str] = {}
+            if did_str not in self.CONFIG_PCI_RAW[vid_str]:
+                self.CONFIG_PCI_RAW[vid_str][did_str] = pci_data
+            elif b not in self.CONFIG_PCI_RAW[vid_str][did_str]['bus']:
+                self.CONFIG_PCI_RAW[vid_str][did_str]['bus'].append(b)
 
     ###
     # Platform detection functions
@@ -220,14 +145,14 @@ class Cfg:
         self.logger.log("\tRID: {:02X}".format(self.pch_rid))
 
     def print_supported_chipsets(self):
-        logger().log("\nSupported platforms:\n")
-        logger().log("VID     | DID     | Name           | Code   | Long Name")
-        logger().log("-------------------------------------------------------------------------------------")
-        for _vid in sorted(self.proc_dictionary.keys()):
-            for _did in sorted(self.proc_dictionary[_vid]):
-                for item in self.proc_dictionary[_vid][_did]:
-                    logger().log(" {:-#06x} | {:-#06x} | {:14} | {:6} | {:40}".format(_vid, _did, item['name'], item['code'].lower(), item['longname']))
-
+        fmtStr = " {:4} | {:4} | {:14} | {:6} | {:40}"
+        self.logger.log("\nSupported platforms:\n")
+        self.logger.log(fmtStr.format("VID", "DID", "Name", "Code", "Long Name"))
+        self.logger.log("-" * 85)
+        for _vid in sorted(self.Cfg.proc_dictionary):
+            for _did in sorted(self.Cfg.proc_dictionary[_vid]):
+                for item in self.Cfg.proc_dictionary[_vid][_did]:
+                    self.logger.log(fmtStr.format(_vid, _did, item['name'], item['code'].lower(), item['longname'][:40]))
     #
     # Load chipsec/cfg/<code>.py configuration file for platform <code>
     #
@@ -554,3 +479,37 @@ class Cfg:
             globals()["CHIPSET_CODE_{}".format(cc.upper())] = cc.upper()
         for pc in self.pch_codes:
             globals()["PCH_CODE_{}".format(pc[4:].upper())] = pc.upper()
+
+    def platform_detection(self, proc_code, pch_code, cpuid):
+        # Detect processor files
+        sku = self._find_sku_data(self.proc_dictionary, proc_code, cpuid)
+        if sku:
+            self.vid = sku['vid']
+            self.did = sku['did']
+            self.code = sku['code']
+            if not proc_code:
+                vid_str = self._make_hex_key_str(self.vid)
+                did_str = self._make_hex_key_str(self.did)
+                self.rid = self.CONFIG_PCI_RAW[vid_str][did_str]['rid']
+            self.longname = sku['longname']
+            self.req_pch = sku['req_pch']
+
+        # Detect PCH files
+        sku = self._find_sku_data(self.pch_dictionary, pch_code)
+        if sku:
+            self.pch_vid = sku['vid']
+            self.pch_did = sku['did']
+            self.pch_code = sku['code']
+            if not pch_code:
+                vid_str = self._make_hex_key_str(self.pch_vid)
+                did_str = self._make_hex_key_str(self.pch_did)
+                self.pch_rid = self.CONFIG_PCI_RAW[vid_str][did_str]['rid']
+            self.pch_longname = sku['longname']
+
+        # Create XML file load list
+        if self.code:
+            self.load_list.extend(self.platform_xml_files[self.code])
+        if self.pch_code:
+            self.load_list.extend(self.platform_xml_files[self.pch_code])
+        if 'devices' in self.platform_xml_files:
+            self.load_list.extend(self.platform_xml_files['devices'])

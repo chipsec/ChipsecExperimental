@@ -23,7 +23,7 @@ Contains platform identification functions
 """
 
 from chipsec.helper.oshelper import OsHelper
-from chipsec.hal import cpu, io, iobar, mmio, msgbus, msr, pci, physmem, ucode, igd
+from chipsec.hal import cpu, cpuid, io, iobar, mmio, msgbus, msr, pci, physmem, ucode, igd
 from chipsec.hal.pci import PCI_HDR_RID_OFF
 from chipsec.exceptions import UnknownChipsetError, DeviceNotFoundError, CSReadError
 from chipsec.exceptions import RegisterTypeNotFoundError
@@ -31,7 +31,7 @@ from chipsec.exceptions import RegisterTypeNotFoundError
 from chipsec.logger import logger
 from chipsec.defines import is_all_ones, ARCH_VID
 
-from chipsec.config import Cfg, CHIPSET_FAMILY
+from chipsec.config import Cfg, CHIPSET_CODE_UNKNOWN
 
 
 # DEBUG Flags
@@ -103,87 +103,48 @@ class Chipset:
     # Initialization
     #
     ##################################################################################
-    def detect_platform(self):
-        vid = 0xFFFF
-        did = 0xFFFF
-        rid = 0xFF
-        pch_vid = 0xFFFF
-        pch_did = 0xFFFF
-        pch_rid = 0xFF
-        try:
-            vid_did = self.pci.read_dword(0, 0, 0, 0)
-            vid = vid_did & 0xFFFF
-            did = (vid_did >> 16) & 0xFFFF
-            rid = self.pci.read_byte(0, 0, 0, PCI_HDR_RID_OFF)
-        except:
-            if logger().DEBUG:
-                logger().log_error("pci.read_dword couldn't read platform VID/DID")
-        if vid not in PCH_ADDRESS:
-            if logger().DEBUG:
-                logger().log_error("PCH address unknown for VID 0x{:04X}.".format(vid))
-        else:
-            try:
-                (bus, dev, fun) = PCH_ADDRESS[vid]
-                vid_did = self.pci.read_dword(bus, dev, fun, 0)
-                pch_vid = vid_did & 0xFFFF
-                pch_did = (vid_did >> 16) & 0xFFFF
-                pch_rid = self.pci.read_byte(0, 31, 0, PCI_HDR_RID_OFF)
-            except:
-                if logger().DEBUG:
-                    logger().log_error("pci.read_dword couldn't read PCH VID/DID")
-        return (vid, did, rid, pch_vid, pch_did, pch_rid)
-
     def get_cpuid(self):
-        # Get processor version information
-        (eax, ebx, ecx, edx) = self.cpu.cpuid(0x01, 0x00)
-        stepping = eax & 0xF
-        model = (eax >> 4) & 0xF
-        extmodel = (eax >> 16) & 0xF
-        family = (eax >> 8) & 0xF
-        ptype = (eax >> 12) & 0x3
-        extfamily = (eax >> 20) & 0xFF
-        ret = '{:01X}{:01X}{:01X}{:01X}{:01X}'.format(extmodel, ptype, family, model, stepping)
-        if extfamily == 0:
-            return ret
-        else:
-            return '{:02X}{}'.format(extfamily, ret)
+        _cpuid = cpuid.CpuID(self)
+        return _cpuid.get_proc_info()
 
     def init(self, platform_code, req_pch_code, start_driver, driver_exists=None, to_file=None, from_file=None):
-        _unknown_platform = False
         self.reqs_pch = None
         self.helper.start(start_driver, driver_exists, to_file, from_file)
         logger().log('[CHIPSEC] API mode: {}'.format('using OS native API (not using CHIPSEC kernel module)' if self.use_native_api() else 'using CHIPSEC kernel module API'))
 
-        vid, did, rid, pch_vid, pch_did, pch_rid = self.detect_platform()
+        # platform detection
+        self.init_cfg_bus()
+
         # get cpuid only if driver using driver (otherwise it will cause problems)
         if start_driver or self.helper.is_linux():
             cpuid = self.get_cpuid()
         else:
             cpuid = None
 
-        (_unknown_platform, _unknown_pch) = self.Cfg.platform_detection(platform_code, req_pch_code, cpuid, vid, did, rid, pch_vid, pch_did, pch_rid)
+        self.Cfg.platform_detection(platform_code, req_pch_code, cpuid)
+        _unknown_proc = self.Cfg.get_chipset_code() is None
+        _unknown_pch = self.Cfg.is_pch_req() and self.Cfg.get_pch_code() == CHIPSET_CODE_UNKNOWN
 
-        if _unknown_platform:
-            msg = 'Unknown Platform: VID = 0x{:04X}, DID = 0x{:04X}, RID = 0x{:02X}'.format(vid, did, rid)
+        if _unknown_proc:
+            msg = 'Unknown Platform: VID = 0x{:04X}, DID = 0x{:04X}, RID = 0x{:02X}'.format(self.Cfg.vid, self.Cfg.did, self.Cfg.rid)
             if start_driver:
                 logger().log_error(msg)
                 raise UnknownChipsetError(msg)
             else:
                 logger().log("[!]       {}; Using Default.".format(msg))
-        if not _unknown_platform:  # Don't initialize config if platform is unknown
+        if not _unknown_proc:  # Don't initialize config if platform is unknown
             self.Cfg.init_cfg()
             # Load Bus numbers for this platform.
             if logger().DEBUG:
                 logger().log("[*] Discovering Bus Configuration:")
-            self.init_cfg_bus()
         if _unknown_pch:
-            msg = 'Unknown PCH: VID = 0x{:04X}, DID = 0x{:04X}, RID = 0x{:02X}'.format(pch_vid, pch_did, pch_rid)
+            msg = 'Unknown PCH: VID = 0x{:04X}, DID = 0x{:04X}, RID = 0x{:02X}'.format(self.Cfg.pch_vid, self.Cfg.pch_did, self.Cfg.pch_rid)
             if self.reqs_pch and start_driver:
                 logger().log_error("Chipset requires a supported PCH to be loaded. {}".format(msg))
                 raise UnknownChipsetError(msg)
             else:
                 logger().log("[!]       {}; Using Default.".format(msg))
-        if _unknown_pch or _unknown_platform:
+        if _unknown_pch or _unknown_proc:
             msg = 'Results from this system may be incorrect.'
             logger().log("[!]            {}".format(msg))
 
@@ -215,66 +176,21 @@ class Chipset:
         return self.helper.use_native_api()
 
     def init_cfg_bus(self):
-        if logger().DEBUG:
-            logger().log('[*] Loading device buses..')
+        _pci = pci.Pci(self)
+        logger().log_debug('[*] Loading device buses..')
         if QUIET_PCI_ENUM:
             old_log_state = (logger().HAL, logger().DEBUG, logger().VERBOSE)
-            logger().HAL, logger().DEBUG, logger().VERBOSE  = (False, False, False)
+            logger().HAL, logger().DEBUG, logger().VERBOSE = (False, False, False)
             logger().setlevel()
         try:
-            enum_devices = self.pci.enumerate_devices()
+            enum_devices = _pci.enumerate_devices()
         except Exception:
-            if logger().DEBUG:
-                logger().log('[*] Unable to enumerate PCI devices.')
+            logger().log_debug('[*] Unable to enumerate PCI devices.')
             enum_devices = []
         if QUIET_PCI_ENUM:
-            logger().HAL, logger().DEBUG, logger().VERBOSE  = old_log_state
+            logger().HAL, logger().DEBUG, logger().VERBOSE = old_log_state
             logger().setlevel()
-
-        # store entries dev_fun_vid_did = [list of bus entries]
-        for enum_dev in enum_devices:
-            cfg_str = "{:0>2X}_{:0>2X}_{:04X}_{:04X}".format(*enum_dev[1:5])
-            if cfg_str in self.Cfg.BUS.keys():
-                self.Cfg.BUS[cfg_str].append(enum_dev[0])
-            else:
-                self.Cfg.BUS[cfg_str] = [enum_dev[0]]
-
-        # convert entries with matching configuration file names
-        replaced_devices = {}
-        for config_device in self.Cfg.CONFIG_PCI:
-            device_data = self.Cfg.CONFIG_PCI[config_device]
-            xml_vid = device_data.get('vid', None)
-            xml_did = device_data.get('did', None)
-            # if the vid and did are present within the configuration file attempt to replace generic name with configuration name
-            if xml_vid and xml_did:
-                did_list = []
-                # gather list of device id: device id may have single entry, multiple entries, end in "X", or specified by a range "-"
-                for tdid in xml_did.split(','):
-                    if tdid[-1].upper() == "X":
-                        tndid = int(tdid[:-1], 16) << 4
-                        for rdv_value in range(tndid, tndid + 0x10):
-                            did_list.append(rdv_value)
-                    elif '-' in tdid:
-                        rdv = tdid.split('-')
-                        for rdv_value in range(int(rdv[0], 16), int(rdv[1], 16) + 1):
-                            did_list.append(rdv_value)
-                    else:
-                        did_list.append(int(tdid, 16))
-                # If there is a match between the configuration entry and generic entry, replace the name with the configuration entry
-                for tdid in did_list:
-                    dev = int(device_data['dev'], 16)
-                    fun = int(device_data['fun'], 16)
-                    vid = int(device_data['vid'], 16)
-                    cfg_str = "{:02X}_{:02X}_{:04X}_{:04X}".format(dev, fun, vid, tdid)
-                    if cfg_str in self.Cfg.BUS.keys():
-                        replaced_devices[cfg_str] = self.Cfg.BUS.pop(cfg_str)
-                    if cfg_str in replaced_devices.keys():
-                        self.Cfg.BUS[config_device] = replaced_devices[cfg_str]
-                        self.Cfg.CONFIG_PCI[config_device]['bus'] = '0x{:02X}'.format(self.Cfg.BUS[config_device][0])
-                        if logger().DEBUG:
-                            buses = ','.join('0x{:02X}'.format(i) for i in self.Cfg.BUS[config_device])
-                            logger().log(' + {:16s}: VID 0x{:04X} - DID 0x{:04X} -> Bus {:s}'.format(config_device, vid, tdid, buses))
-                        break
+        self.Cfg.set_pci_data(enum_devices)
 
 
     ##################################################################################
