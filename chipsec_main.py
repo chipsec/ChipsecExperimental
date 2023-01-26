@@ -260,8 +260,8 @@ class ChipsecMain:
         # Step 2.
         # Load platform-specific modules from the corresponding platform module directory
         #
-        chipset_path = os.path.join(self.Modules_Path, self._cs.code.lower())
-        if (chipset.CHIPSET_CODE_UNKNOWN != self._cs.code) and os.path.exists(chipset_path):
+        chipset_path = os.path.join(self.Modules_Path, self._cs.Cfg.code.lower())
+        if (chipset.CHIPSET_CODE_UNKNOWN != self._cs.Cfg.code) and os.path.exists(chipset_path):
             self.logger.log("[*] loading platform specific modules from \"{}\" ..".format(
                 chipset_path.replace(os.getcwd(), '.')))
             self.load_modules_from_path(chipset_path)
@@ -402,11 +402,11 @@ class ChipsecMain:
         ret["OS"] = "{} {} {} {}".format(self._cs.helper.os_system, self._cs.helper.os_release,
                                          self._cs.helper.os_version, self._cs.helper.os_machine)
         ret["Python"] = "Python {}".format(platform.python_version())
-        ret["Platform"] = "{}, CPUID: {}, VID: {:04X}, DID: {:04X}, RID: {:02X}".format(self._cs.longname, self._cs.get_cpuid(), self._cs.vid,
-                                                                                        self._cs.did, self._cs.rid)
+        ret["Platform"] = "{}, CPUID: {}, VID: {:04X}, DID: {:04X}, RID: {:02X}".format(self._cs.Cfg.longname, self._cs.Cfg.cpuid, self._cs.Cfg.vid,
+                                                                                        self._cs.Cfg.did, self._cs.Cfg.rid)
         if not self._cs.is_atom():
-            ret["PCH"] = "{}, VID: {:04X}, DID: {:04X} RID: {:02X}".format(self._cs.pch_longname, self._cs.pch_vid,
-                                                                           self._cs.pch_did, self._cs.pch_rid)
+            ret["PCH"] = "{}, VID: {:04X}, DID: {:04X} RID: {:02X}".format(self._cs.Cfg.pch_longname, self._cs.Cfg.pch_vid,
+                                                                           self._cs.Cfg.pch_did, self._cs.Cfg.pch_rid)
         ret["Version"] = "{}".format(self.version)
         ret["Message"] = "{}".format(self.message)
         return ret

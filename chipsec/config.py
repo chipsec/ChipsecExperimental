@@ -18,21 +18,16 @@
 # chipsec@intel.com
 #
 
-from collections import namedtuple
 from fnmatch import fnmatch
 import importlib
 import os
-import re
 import xml.etree.ElementTree as ET
 from chipsec.defines import is_hex
 from chipsec.exceptions import CSConfigError
 from chipsec.file import get_main_dir
 from chipsec.logger import logger
-from chipsec.exceptions import DeviceNotFoundError
 from chipsec.parsers import Stage
 from chipsec.parsers import stage_info, config_data
-
-import traceback
 
 LOAD_COMMON = True
 
@@ -43,7 +38,6 @@ CHIPSET_CODE_UNKNOWN = ''
 PROC_FAMILY = {}
 
 PCH_CODE_PREFIX = 'PCH_'
-
 
 
 class Cfg:
@@ -110,10 +104,8 @@ class Cfg:
                 'vid': vid,
                 'did': did,
                 'rid': rid}
-            #if vid_str not in self.CONFIG_PCI_RAW:
-            #    self._create_vid(vid_str)
             if vid_str not in self.CONFIG_PCI_RAW:
-               self.CONFIG_PCI_RAW[vid_str] = {}
+                self.CONFIG_PCI_RAW[vid_str] = {}
             if did_str not in self.CONFIG_PCI_RAW[vid_str]:
                 self.CONFIG_PCI_RAW[vid_str][did_str] = pci_data
             elif b not in self.CONFIG_PCI_RAW[vid_str][did_str]['bus']:
@@ -133,7 +125,7 @@ class Cfg:
 
     def print_platform_info(self):
         self.logger.log("Platform: {}".format(self.longname))
-        self.logger.log(f'\tCPUID: {self.cpuid}')
+        self.logger.log(f'\tCPUID: {self.cpuid:X}')
         self.logger.log("\tVID: {:04X}".format(self.vid))
         self.logger.log("\tDID: {:04X}".format(self.did))
         self.logger.log("\tRID: {:02X}".format(self.rid))
@@ -149,178 +141,10 @@ class Cfg:
         self.logger.log("\nSupported platforms:\n")
         self.logger.log(fmtStr.format("VID", "DID", "Name", "Code", "Long Name"))
         self.logger.log("-" * 85)
-        for _vid in sorted(self.Cfg.proc_dictionary):
-            for _did in sorted(self.Cfg.proc_dictionary[_vid]):
-                for item in self.Cfg.proc_dictionary[_vid][_did]:
+        for _vid in sorted(self.proc_dictionary):
+            for _did in sorted(self.proc_dictionary[_vid]):
+                for item in self.proc_dictionary[_vid][_did]:
                     self.logger.log(fmtStr.format(_vid, _did, item['name'], item['code'].lower(), item['longname'][:40]))
-    #
-    # Load chipsec/cfg/<code>.py configuration file for platform <code>
-    #
-
-    def init_cfg(self):
-        if self.code and '' != self.code:
-            try:
-                module_path = 'chipsec.cfg.' + self.code
-                module = importlib.import_module(module_path)
-                logger().log_good("imported platform specific configuration: chipsec.cfg.{}".format(self.code))
-                self.Cfg = getattr(module, self.code)()
-            except ImportError as msg:
-                if logger().DEBUG:
-                    logger().log("[*] Couldn't import chipsec.cfg.{}\n{}".format(self.code, str(msg)))
-
-        #
-        # Initialize platform configuration from XML files
-        #
-        try:
-            self.load_xml_configuration()
-        except:
-            if logger().DEBUG:
-                logger().log_bad(traceback.format_exc())
-            pass
-
-    ##################################################################################
-    #
-    # Loading platform configuration from XML files in chipsec/cfg/
-    #
-    ##################################################################################
-
-    def load_xml_configuration(self):
-        # Create a sorted config file list (xml only)
-        _cfg_files = []
-        _cfg_path = os.path.join(get_main_dir(), 'chipsec/cfg', "{:04X}".format(self.vid))
-        for root, subdirs, files in os.walk(_cfg_path):
-            _cfg_files.extend([os.path.join(root, x) for x in files if fnmatch.fnmatch(x, '*.xml')])
-        _cfg_files.sort()
-        if logger().DEBUG:
-            logger().log("[*] Configuration Files:")
-            for _xml in _cfg_files:
-                logger().log("[*] - {}".format(_xml))
-
-        # Locate common (chipsec/cfg/{vid}/common*.xml) configuration XML files.
-        loaded_files = []
-        if LOAD_COMMON:
-            for _xml in _cfg_files:
-                if fnmatch.fnmatch(os.path.basename(_xml), 'common*.xml'):
-                    loaded_files.append(_xml)
-
-        # Locate configuration files from all other XML files recursively (if any) excluding other platform configuration files.
-            platform_files = []
-            for plat in [c.lower() for c in self.proc_codes]:
-                platform_files.extend([x for x in _cfg_files if fnmatch.fnmatch(os.path.basename(x), '{}*.xml'.format(plat)) or os.path.basename(x).startswith(PCH_CODE_PREFIX.lower())])
-            loaded_files.extend([x for x in _cfg_files if x not in loaded_files and x not in platform_files])
-
-        # Locate platform specific (chipsec/cfg/{vid}/<code>*.xml) configuration XML files.
-        if self.code and CHIPSET_CODE_UNKNOWN != self.code:
-            for _xml in _cfg_files:
-                if fnmatch.fnmatch(os.path.basename(_xml), '{}*.xml'.format(self.code.lower())):
-                    loaded_files.append(_xml)
-
-        # Locate PCH specific (chipsec/cfg/{vid}/pch_<code>*.xml) configuration XML files.
-        if self.pch_code and CHIPSET_CODE_UNKNOWN != self.pch_code:
-            for _xml in _cfg_files:
-                if fnmatch.fnmatch(os.path.basename(_xml).lower(), '{}*.xml'.format(self.pch_code.lower())):
-                    loaded_files.append(_xml)
-
-        # Load all configuration files for this platform.
-        if logger().DEBUG:
-            logger().log("[*] Loading Configuration Files:")
-        for _xml in loaded_files:
-            self.init_cfg_xml(_xml, self.code.lower(), self.pch_code.lower())
-
-        self.Cfg.XML_CONFIG_LOADED = True
-
-    def populate_cfg_type(self, xml_cfg, type, config_to_modify, item_name):
-        for _item in xml_cfg.iter(type):
-            for _named_item in _item.iter(item_name):
-                _name = _named_item.attrib['name']
-                del _named_item.attrib['name']
-                if 'undef' in _named_item.attrib:
-                    if _name in config_to_modify:
-                        if logger().DEBUG:
-                            logger().log("    - {:16}: {}".format(_name, _named_item.attrib['undef']))
-                        config_to_modify.pop(_name, None)
-                    continue
-                if type == 'registers':
-                    if 'size' not in _named_item.attrib:
-                        _named_item.attrib['size'] = "0x4"
-                    if 'desc' not in _named_item.attrib:
-                        _named_item.attrib['desc'] = ''
-                fields = {}
-                if _named_item.find('field') is not None:
-                    for _field in _named_item.iter('field'):
-                        _field_name = _field.attrib['name']
-                        if 'lockedby' in _field.attrib:
-                            _lockedby = _field.attrib['lockedby']
-                            if _lockedby in self.Cfg.LOCKEDBY.keys():
-                                self.Cfg.LOCKEDBY[_lockedby].append((_name, _field_name))
-                            else:
-                                self.Cfg.LOCKEDBY[_lockedby] = [(_name, _field_name)]
-                        del _field.attrib['name']
-                        if 'desc' not in _field.attrib:
-                            _field.attrib['desc'] = ''
-                        fields[_field_name] = _field.attrib
-                    _named_item.attrib['FIELDS'] = fields
-
-                config_to_modify[_name] = _named_item.attrib
-                if logger().DEBUG:
-                    logger().log("    + {:16}: {}".format(_name, _named_item.attrib))
-
-    def init_cfg_xml(self, fxml, code, pch_code):
-        if not os.path.exists(fxml):
-            return
-        if logger().DEBUG:
-            logger().log("[*] looking for platform config in '{}'..".format(fxml))
-        tree = ET.parse(fxml)
-        root = tree.getroot()
-        for _cfg in root.iter('configuration'):
-            if 'platform' not in _cfg.attrib:
-                if logger().DEBUG:
-                    logger().log("[*] loading common platform config from '{}'..".format(fxml))
-            elif code == _cfg.attrib['platform'].lower():
-                if logger().DEBUG:
-                    logger().log("[*] loading '{}' platform config from '{}'..".format(code, fxml))
-                if 'req_pch' in _cfg.attrib:
-                    if 'true' == _cfg.attrib['req_pch'].lower():
-                        self.req_pch = True
-                    if 'false' == _cfg.attrib['req_pch'].lower():
-                        self.req_pch = False
-            elif pch_code == _cfg.attrib['platform'].lower():
-                if logger().DEBUG:
-                    logger().log("[*] loading '{}' PCH config from '{}'..".format(pch_code, fxml))
-            else:
-                continue
-
-            if logger().DEBUG:
-                logger().log("[*] loading integrated devices/controllers..")
-            self.populate_cfg_type(_cfg, 'pci', self.Cfg.CONFIG_PCI, 'device')
-
-            if logger().DEBUG:
-                logger().log("[*] loading MMIO BARs..")
-            self.populate_cfg_type(_cfg, 'mmio', self.Cfg.MMIO_BARS, 'bar')
-
-            if logger().DEBUG:
-                logger().log("[*] loading I/O BARs..")
-            self.populate_cfg_type(_cfg, 'io', self.Cfg.IO_BARS, 'bar')
-
-            if logger().DEBUG:
-                logger().log("[*] loading indirect memory accesses definitions..")
-            self.populate_cfg_type(_cfg, 'ima', self.Cfg.IO_BARS, 'indirect')
-
-            if logger().DEBUG:
-                logger().log("[*] loading memory ranges..")
-            self.populate_cfg_type(_cfg, 'memory', self.Cfg.MEMORY_RANGES, 'range')
-
-            if logger().DEBUG:
-                logger().log("[*] loading configuration registers..")
-            self.populate_cfg_type(_cfg, 'registers', self.Cfg.REGISTERS, 'register')
-
-            if logger().DEBUG:
-                logger().log("[*] loading controls..")
-            self.populate_cfg_type(_cfg, 'controls', self.Cfg.CONTROLS, 'control')
-
-            if logger().DEBUG:
-                logger().log("[*] loading locks..")
-            self.populate_cfg_type(_cfg, 'locks', self.Cfg.LOCKS, 'lock')
 
     ###
     # Private config functions
@@ -482,6 +306,7 @@ class Cfg:
 
     def platform_detection(self, proc_code, pch_code, cpuid):
         # Detect processor files
+        self.cpuid = cpuid
         sku = self._find_sku_data(self.proc_dictionary, proc_code, cpuid)
         if sku:
             self.vid = sku['vid']
@@ -507,9 +332,40 @@ class Cfg:
             self.pch_longname = sku['longname']
 
         # Create XML file load list
+        if LOAD_COMMON:
+            self.load_list.extend(self.get_common_xml())
         if self.code:
             self.load_list.extend(self.platform_xml_files[self.code])
         if self.pch_code:
             self.load_list.extend(self.platform_xml_files[self.pch_code])
         if 'devices' in self.platform_xml_files:
             self.load_list.extend(self.platform_xml_files['devices'])
+
+    def load_platform_config(self):
+        sec_load_list = []
+        tag_handlers = self._get_stage_parsers(Stage.DEVICE_CFG)
+        for fxml in self.load_list:
+            self.logger.log_debug('[*] Loading primary config data: {}'.format(fxml.xml_file))
+            for config_root in self._get_config_iter(fxml):
+                for tag in tag_handlers:
+                    self.logger.log_debug('[*] Collecting {} configuration data...'.format(tag))
+                    for node in config_root.iter(tag):
+                        sec_load_list.extend(tag_handlers[tag](node, fxml))
+        self._load_sec_configs(sec_load_list, Stage.CORE_SUPPORT)
+        self._load_sec_configs(sec_load_list, Stage.CUST_SUPPORT)
+        if self.load_extra:
+            self._load_sec_configs(self.load_extra, Stage.EXTRA)
+
+    def get_common_xml(self):
+        cfg_path = os.path.join(get_main_dir(), 'chipsec', 'cfg')
+        vid = f'{self.vid:X}'
+
+        # Locate all common configuration files
+        cfg_files = []
+        cfg_vids = [f.name for f in os.scandir(cfg_path) if f.is_dir() and is_hex(f.name)]
+        if vid in cfg_vids:
+            root_path = os.path.join(cfg_path, vid)
+            cfg_files.extend([config_data(vid, None, f.path)
+                             for f in sorted(os.scandir(root_path), key=lambda x: x.name)
+                             if fnmatch(f.name, '*.xml') and fnmatch(f.name, 'common*')])
+        return cfg_files

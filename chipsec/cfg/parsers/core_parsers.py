@@ -18,10 +18,9 @@
 # chipsec@intel.com
 
 import copy
-import os
 from chipsec.parsers import BaseConfigParser
 from chipsec.parsers import Stage
-from chipsec.parsers import info_data, config_data
+from chipsec.parsers import info_data
 
 CONFIG_TAG = 'configuration'
 
@@ -45,9 +44,10 @@ def _config_convert_data(xml_node, did_is_range=False):
     INT_KEYS = ['dev', 'fun', 'vid', 'did', 'rid', 'offset',
                 'bit', 'size', 'port', 'msr', 'value', 'address',
                 'fixed_address', 'base_align', 'align_bits', 'mask',
-                'reg_align', 'limit_align', 'regh_align']
+                'reg_align', 'limit_align', 'regh_align', 'bus',
+                'width', 'reg']
     BOOL_KEYS = ['req_pch']
-    INT_LIST_KEYS = ['bus']
+    INT_LIST_KEYS = []
     STR_LIST_KEYS = ['config']
     RANGE_LIST_KEYS = ['detection_value']
     if did_is_range:
@@ -115,4 +115,149 @@ class PlatformInfo(BaseConfigParser):
 
         return info_data(family, proc_code, pch_code, detect_vals, req_pch, stage_data.vid_str, sku_data)
 
-parsers = [PlatformInfo]
+
+class CoreConfig(BaseConfigParser):
+    def get_metadata(self):
+        return {'pci': self.handle_pci,
+                'mmio': self.handle_mmio,
+                'io': self.handle_io,
+                'ima': self.handle_ima,
+                'memory': self.handle_memory,
+                'registers': self.handle_registers,
+                'controls': self.handle_controls,
+                'locks': self.handle_locks}
+
+    def get_stage(self):
+        return Stage.DEVICE_CFG
+
+    def _process_pci_dev(self, vid_str, dev_name, dev_attr):
+        if 'did' in dev_attr:
+            for did in dev_attr['did']:
+                did_str = self.cfg._make_hex_key_str(did)
+                if did_str in self.cfg.CONFIG_PCI_RAW[vid_str]:
+                    pci_data = self.cfg.CONFIG_PCI_RAW[vid_str][did_str]
+                    self._add_dev(vid_str, dev_name, pci_data, dev_attr)
+                    break
+        else:
+            for did_str in self.cfg.CONFIG_PCI_RAW[vid_str]:
+                pci_data = self.cfg.CONFIG_PCI_RAW[vid_str][did_str]
+                if dev_attr['bus'] == pci_data['bus'] and dev_attr['dev'] == pci_data['dev'] and \
+                   dev_attr['fun'] == pci_data['fun']:
+                    self._add_dev(vid_str, dev_name, pci_data, dev_attr)
+                    break
+        if dev_name not in self.cfg.CONFIG_PCI:
+            self._add_dev(vid_str, dev_name, None, dev_attr)
+
+    def _add_dev(self, vid_str, name, pci_info, dev_attr):
+        if name not in self.cfg.CONFIG_PCI:
+            if pci_info:
+                self.cfg.BUS[name] = pci_info['bus']
+                pci_info['bus'] = pci_info['bus'][0]
+                self.cfg.CONFIG_PCI[name] = copy.copy(pci_info)
+            else:
+                self.cfg.CONFIG_PCI[name] = copy.deepcopy(dev_attr)
+                self.cfg.BUS[name] = []
+                if 'did' in dev_attr:
+                    self.cfg.CONFIG_PCI[name]['did'] = dev_attr['did'][0]
+
+    def handle_pci(self, et_node, stage_data):
+        ret_val = []
+
+        for dev in et_node.iter('device'):
+            dev_attr = _config_convert_data(dev, True)
+            if 'name' not in dev_attr:
+                continue
+            dev_name = dev_attr['name']
+            self._process_pci_dev(stage_data.vid_str, dev_name, dev_attr)
+            self.logger.log_debug('    + {:16}: {}'.format(dev_attr['name'], dev_attr))
+
+        return ret_val
+
+    def handle_controls(self, et_node, stage_data):
+        return self._add_entry_simple(self.cfg.CONTROLS, stage_data, et_node, 'control')
+
+    def handle_io(self, et_node, stage_data):
+        return self._add_entry_simple(self.cfg.IO_BARS, stage_data, et_node, 'bar')
+
+    def handle_ima(self, et_node, stage_data):
+        return self._add_entry_simple(self.cfg.IO_BARS, stage_data, et_node, 'indirect')
+
+    def handle_locks(self, et_node, stage_data):
+        return self._add_entry_simple(self.cfg.LOCKS, stage_data, et_node, 'lock')
+
+    def handle_memory(self, et_node, stage_data):
+        return self._add_entry_simple(self.cfg.MEMORY_RANGES, stage_data, et_node, 'range')
+
+    def handle_mmio(self, et_node, stage_data):
+        return self._add_entry_simple(self.cfg.MMIO_BARS, stage_data, et_node, 'bar')
+
+    def handle_registers(self, et_node, stage_data):
+        ret_val = []
+        dest = self.cfg.REGISTERS
+        for reg in et_node.iter('register'):
+            reg_attr = _config_convert_data(reg)
+            if 'name' not in reg_attr:
+                self.logger.log_error('Missing name entry for {}'.format(reg_attr))
+                continue
+            reg_name = reg_attr['name']
+            if 'undef' in reg_attr:
+                if reg_name in dest:
+                    self.logger.log_debug("    - {:16}: {}".format(reg_name, reg_attr['undef']))
+                    dest.pop(reg_name, None)
+                continue
+
+            # Patch missing or incorrect data
+            if 'desc' not in reg_attr:
+                reg_attr['desc'] = reg_name
+            if 'size' not in reg_attr:
+                self.logger.log_error('Missing size entry for {:16}: {}'.format(reg_name, reg_attr))
+                reg_attr['size'] = 4
+
+            # Get existing field data
+            if reg_name in self.cfg.REGISTERS:
+                reg_fields = self.cfg.REGISTERS[reg_name]['FIELDS']
+            else:
+                reg_fields = {}
+
+            for field in reg.iter('field'):
+                field_attr = _config_convert_data(field)
+                field_name = field_attr['name']
+
+                # Locked by attributes need to be handled here due to embedding information in field data
+                if 'lockedby' in field_attr:
+                    lockedby = field_attr['lockedby']
+                    if lockedby in self.cfg.LOCKEDBY:
+                        self.cfg.LOCKEDBY[lockedby].append({reg_name, field_name})
+                    else:
+                        self.cfg.LOCKEDBY[lockedby] = [{reg_name, field_name}]
+                # Handle rest of field data here
+                if 'desc' not in field_attr:
+                    field_attr['desc'] = field_name
+                reg_fields[field_name] = field_attr
+
+            # Store all register data
+            reg_attr['FIELDS'] = reg_fields
+            self.cfg.REGISTERS[reg_name] = reg_attr
+            self.logger.log_debug('    + {:16}: {}'.format(reg_name, reg_attr))
+        return ret_val
+
+    def _add_entry_simple(self, dest, stage_data, et_node, node_name):
+        ret_val = []
+        for node in et_node.iter(node_name):
+            attrs = _config_convert_data(node)
+            if 'name' not in attrs:
+                self.logger.log_error('Missing name entry for {}'.format(attrs))
+                continue
+            if 'undef' in attrs:
+                if attrs['name'] in dest:
+                    self.logger.log_debug("    - {:16}: {}".format(attrs['name'], attrs['undef']))
+                    dest.pop(attrs['name'], None)
+                continue
+            if 'desc' not in attrs:
+                attrs['desc'] = attrs['name']
+            dest[attrs['name']] = attrs
+            self.logger.log_debug('    + {:16}: {}'.format(attrs['name'], attrs))
+        return ret_val
+
+
+parsers = [PlatformInfo, CoreConfig]

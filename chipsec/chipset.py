@@ -132,11 +132,6 @@ class Chipset:
                 raise UnknownChipsetError(msg)
             else:
                 logger().log("[!]       {}; Using Default.".format(msg))
-        if not _unknown_proc:  # Don't initialize config if platform is unknown
-            self.Cfg.init_cfg()
-            # Load Bus numbers for this platform.
-            if logger().DEBUG:
-                logger().log("[*] Discovering Bus Configuration:")
         if _unknown_pch:
             msg = 'Unknown PCH: VID = 0x{:04X}, DID = 0x{:04X}, RID = 0x{:02X}'.format(self.Cfg.pch_vid, self.Cfg.pch_did, self.Cfg.pch_rid)
             if self.reqs_pch and start_driver:
@@ -144,6 +139,8 @@ class Chipset:
                 raise UnknownChipsetError(msg)
             else:
                 logger().log("[!]       {}; Using Default.".format(msg))
+        if not _unknown_proc:  # Don't initialize config if platform is unknown
+            self.Cfg.load_platform_config()
         if _unknown_pch or _unknown_proc:
             msg = 'Results from this system may be incorrect.'
             logger().log("[!]            {}".format(msg))
