@@ -32,7 +32,7 @@ import argparse
 from typing import Sequence, Optional, Dict, Any
 from chipsec.helper import oshelper
 from chipsec.logger import logger, level
-from chipsec.banner import print_banner, print_banner_properties
+from chipsec.lib.banner import print_banner, print_banner_properties
 from chipsec.exceptions import UnknownChipsetError
 from chipsec.testcase import ExitCode
 from chipsec.chipset import cs

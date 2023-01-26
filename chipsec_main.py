@@ -49,7 +49,7 @@ from chipsec import module_common
 from chipsec import chipset
 from chipsec.helper import oshelper
 from chipsec.logger import logger
-from chipsec.banner import print_banner, print_banner_properties
+from chipsec.lib.banner import print_banner, print_banner_properties
 from chipsec.testcase import ExitCode, TestCase, ChipsecResults
 from chipsec.exceptions import UnknownChipsetError, OsHelperError
 
