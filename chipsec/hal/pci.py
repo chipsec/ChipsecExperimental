@@ -40,12 +40,10 @@ import struct
 from collections import namedtuple
 import itertools
 
-from chipsec import defines
-from chipsec.logger import logger, pretty_print_hex_buffer
+from chipsec.defines import MASK_16b, MASK_32b, MASK_64b, BOUNDARY_4KB
+from chipsec.hal.hal_base import HALBase
 from chipsec.file import write_file
-from chipsec.hal.pcidb import VENDORS, DEVICES
 from chipsec.exceptions import OsHelperError
-from chipsec.defines import is_all_ones
 
 #
 # PCI configuration header registers
@@ -202,37 +200,6 @@ class XROM:
         self.header = None
 
 
-def get_vendor_name_by_vid(vid):
-    if vid in VENDORS:
-        return VENDORS[vid]
-    return ''
-
-
-def get_device_name_by_didvid(vid, did):
-    if vid in DEVICES:
-        if did in DEVICES[vid]:
-            return DEVICES[vid][did]
-    return ''
-
-
-def print_pci_devices(_devices):
-    logger().log("BDF     | VID:DID   | Vendor                       | Device")
-    logger().log("-------------------------------------------------------------------------")
-    for (b, d, f, vid, did) in _devices:
-        vendor_name = get_vendor_name_by_vid(vid)
-        device_name = get_device_name_by_didvid(vid, did)
-        logger().log("{:02X}:{:02X}.{:X} | {:04X}:{:04X} | {:28} | {}".format(b, d, f, vid, did, vendor_name, device_name))
-
-
-def print_pci_XROMs(_xroms):
-    if len(_xroms) == 0:
-        return
-    logger().log("BDF     | VID:DID   | XROM base | XROM size | en ")
-    logger().log("-------------------------------------------------")
-    for xrom in _xroms:
-        logger().log("{:02X}:{:02X}.{:X} | {:04X}:{:04X} | {:08X}  | {:08X}  | {:d}".format(xrom.bus, xrom.dev, xrom.fun, xrom.vid, xrom.did, xrom.base, xrom.size, xrom.en))
-
-
 class Pci:
 
     def __init__(self, cs):
@@ -242,48 +209,46 @@ class Pci:
     #
     # Access to PCI configuration registers
     #
-
     def read_dword(self, bus, device, function, address):
         value = self.helper.read_pci_reg(bus, device, function, address, 4)
-        if logger().HAL:
-            logger().log("[pci] reading B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:08X}".format(bus, device, function, address, value))
+        self.logger.log_hal("[pci] reading B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:08X}".format(
+            bus, device, function, address, value))
         return value
 
     def read_word(self, bus, device, function, address):
         word_value = self.helper.read_pci_reg(bus, device, function, address, 2)
-        if logger().HAL:
-            logger().log("[pci] reading B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:04X}".format(bus, device, function, address, word_value))
+        self.logger.log_hal("[pci] reading B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:04X}".format(
+            bus, device, function, address, word_value))
         return word_value
 
     def read_byte(self, bus, device, function, address):
         byte_value = self.helper.read_pci_reg(bus, device, function, address, 1)
-        if logger().HAL:
-            logger().log("[pci] reading B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:02X}".format(bus, device, function, address, byte_value))
+        self.logger.log_hal("[pci] reading B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:02X}".format(
+            bus, device, function, address, byte_value))
         return byte_value
 
     def write_byte(self, bus, device, function, address, byte_value):
         self.helper.write_pci_reg(bus, device, function, address, byte_value, 1)
-        if logger().HAL:
-            logger().log("[pci] writing B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:02X}".format(bus, device, function, address, byte_value))
+        self.logger.log_hal("[pci] writing B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:02X}".format(
+            bus, device, function, address, byte_value))
         return
 
     def write_word(self, bus, device, function, address, word_value):
         self.helper.write_pci_reg(bus, device, function, address, word_value, 2)
-        if logger().HAL:
-            logger().log("[pci] writing B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:04X}".format(bus, device, function, address, word_value))
+        self.logger.log_hal("[pci] writing B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:04X}".format(
+            bus, device, function, address, word_value))
         return
 
     def write_dword(self, bus, device, function, address, dword_value):
         self.helper.write_pci_reg(bus, device, function, address, dword_value, 4)
-        if logger().HAL:
-            logger().log("[pci] writing B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:08X}".format(bus, device, function, address, dword_value))
+        self.logger.log_hal("[pci] writing B/D/F: {:d}/{:d}/{:d}, offset: 0x{:02X}, value: 0x{:08X}".format(
+            bus, device, function, address, dword_value))
         return
 
     #
     # Enumerating PCI devices and dumping configuration space
     #
-
-    def enumerate_devices(self, bus=None, device=None, function=None):
+    def enumerate_devices(self, bus=None, device=None, function=None, spec=True):
         devices = []
 
         if bus is not None:
@@ -299,16 +264,19 @@ class Pci:
         else:
             func_range = range(8)
 
-        for b, d, f in itertools.product(bus_range, dev_range, func_range):
-            try:
-                did_vid = self.read_dword(b, d, f, 0x0)
-                if 0xFFFFFFFF != did_vid:
-                    vid = did_vid & 0xFFFF
-                    did = (did_vid >> 16) & 0xFFFF
-                    devices.append((b, d, f, vid, did))
-            except OsHelperError:
-                if logger().HAL:
-                    logger().log("[pci] unable to access B/D/F: {:d}/{:d}/{:d}".format(b, d, f))
+        for b, d in itertools.product(bus_range, dev_range):
+            for f in func_range:
+                try:
+                    did_vid = self.read_dword(b, d, f, 0x0)
+                    if 0xFFFFFFFF != did_vid:
+                        vid = did_vid & 0xFFFF
+                        did = (did_vid >> 16) & 0xFFFF
+                        rid = self.read_byte(b, d, f, 0x8)
+                        devices.append((b, d, f, vid, did, rid))
+                    elif f == 0 and spec:
+                        break
+                except OsHelperError:
+                    self.logger.log_hal("[pci] unable to access B/D/F: {:d}/{:d}/{:d}".format(b, d, f))
         return devices
 
     def dump_pci_config(self, bus, device, function):
@@ -319,13 +287,119 @@ class Pci:
                 cfg.append((tmp_val >> shift) & 0xFF)
         return cfg
 
-    def print_pci_config_all(self):
-        logger().log("[pci] enumerating available PCI devices...")
-        pci_devices = self.enumerate_devices()
-        for (b, d, f, vid, did) in pci_devices:
-            cfg_buf = self.dump_pci_config(b, d, f)
-            logger().log("\n[pci] PCI device {:02X}:{:02X}.{:02X} configuration:".format(b, d, f))
-            pretty_print_hex_buffer(cfg_buf)
+    def get_DIDVID(self, bus, dev, fun):
+        didvid = self.read_dword(bus, dev, fun, 0x0)
+        vid = didvid & 0xFFFF
+        did = (didvid >> 16) & 0xFFFF
+        return (did, vid)
+
+    def is_enabled(self, bus, dev, fun):
+        (did, vid) = self.get_DIDVID(bus, dev, fun)
+        if (is_all_ones(vid, 2)) or (is_all_ones(did, 2)):
+            return False
+        return True
+
+    def get_header_type(self, bus, dev, fun):
+        res = self.read_byte(bus, dev, fun, PCI_HDR_TYPE_OFF)
+        return res & PCI_HDR_TYPE_TYPE_MASK
+
+    #
+    # Calculates actual size of MMIO BAR range
+    def calc_bar_size(self, bus, dev, fun, off, is64, isMMIO):
+        self.logger.log_hal("calc_bar_size {}:{}.{} offset{}".format(bus, dev, fun, off))
+        # Read the original value of the register
+        orig_regL = self.read_dword(bus, dev, fun, off)
+        self.logger.log_hal('orig_regL: {:X}'.format(orig_regL))
+        if is64:
+            orig_regH = self.read_dword(bus, dev, fun, off + PCI_HDR_BAR_STEP)
+            self.logger.log_hal('orig_regH: {:X}'.format(orig_regH))
+        # Write all 1's to the register
+        self.write_dword(bus, dev, fun, off + PCI_HDR_BAR_STEP, MASK_32b)
+        if is64:
+            self.write_dword(bus, dev, fun, off, MASK_32b)
+        # Read the register back
+        regL = self.read_dword(bus, dev, fun, off)
+        self.logger.log_hal('regL: {:X}'.format(regL))
+        if is64:
+            regH = self.read_dword(bus, dev, fun, off + PCI_HDR_BAR_STEP)
+            self.logger.log_hal('regH: {:X}'.format(regH))
+        # Write original value back to register
+        self.write_dword(bus, dev, fun, off, orig_regL)
+        if is64:
+            self.write_dword(bus, dev, fun, off + PCI_HDR_BAR_STEP, orig_regH)
+        # Calculate Sizing
+        if isMMIO and is64:
+            reg = regL | (regH << 32)
+            orig_reg = orig_regL | (orig_regH << 32)
+            if orig_reg == reg:
+                size = BOUNDARY_4KB
+            else:
+                size = (~(reg & PCI_HDR_BAR_BASE_MASK_MMIO64) & MASK_64b) + 1
+        elif isMMIO:
+            if regL == orig_regL:
+                size = BOUNDARY_4KB
+            else:
+                size = (~(regL & PCI_HDR_BAR_BASE_MASK_MMIO) & MASK_32b) + 1
+        else:
+            if regL == orig_regL:
+                size = 0x100
+            else:
+                size = (~(regL & PCI_HDR_BAR_BASE_MASK_IO) & MASK_16b) + 1
+        return size
+
+    # Returns all I/O and MMIO BARs defined in the PCIe header of the device
+    # Returns array of elements in format (BAR_address, isMMIO, is64bit, BAR_reg_offset, BAR_reg_value)
+    def get_device_bars(self, bus, dev, fun, bCalcSize=False):
+        _bars = []
+        hdr_type = self.get_header_type(bus, dev, fun)
+        if hdr_type == 0:
+            bounds = PCI_HDR_TYPE0_BAR2_HI_OFF
+        elif hdr_type == 1:
+            bounds = PCI_HDR_TYPE0_BAR1_LO_OFF
+        else:
+            bounds = PCI_HDR_BAR0_LO_OFF
+
+        off = PCI_HDR_BAR0_LO_OFF
+        size = BOUNDARY_4KB
+        while off <= bounds:
+            reg = self.read_dword(bus, dev, fun, off)
+            if reg and reg != MASK_32b:
+                # BAR is initialized
+                isMMIO = (PCI_HDR_BAR_IOMMIO_MMIO == (reg & PCI_HDR_BAR_IOMMIO_MASK))
+                if isMMIO:
+                    # MMIO BAR
+                    mem_type = (reg & PCI_HDR_BAR_TYPE_MASK) >> PCI_HDR_BAR_TYPE_SHIFT
+                    if PCI_HDR_BAR_TYPE_64B == mem_type:
+                        # 64-bit MMIO BAR
+                        if bCalcSize and hdr_type == 0:
+                            size = self.calc_bar_size(bus, dev, fun, off, True, True)
+                        off += PCI_HDR_BAR_STEP
+                        reg_hi = self.read_dword(bus, dev, fun, off)
+                        reg |= (reg_hi << 32)
+                        base = (reg & PCI_HDR_BAR_BASE_MASK_MMIO64)
+                        if base != 0:
+                            _bars.append((base, isMMIO, True, off - PCI_HDR_BAR_STEP, reg, size))
+                    elif PCI_HDR_BAR_TYPE_1MB == mem_type:
+                        # MMIO BAR below 1MB - not supported
+                        pass
+                    elif PCI_HDR_BAR_TYPE_32B == mem_type:
+                        # 32-bit only MMIO BAR
+                        base = (reg & PCI_HDR_BAR_BASE_MASK_MMIO)
+                        if base != 0:
+                            if bCalcSize and hdr_type == 0:
+                                size = self.calc_bar_size(bus, dev, fun, off, False, True)
+                            _bars.append((base, isMMIO, False, off, reg, size))
+                else:
+                    # I/O BAR
+                    base = (reg & PCI_HDR_BAR_BASE_MASK_IO)
+                    if base != 0:
+                        if bCalcSize and hdr_type == 0:
+                            size = self.calc_bar_size(bus, dev, fun, off, False, False)
+                        else:
+                            size = 0x100
+                        _bars.append((base, isMMIO, False, off, reg, size))
+            off += PCI_HDR_BAR_STEP
+        return _bars
 
     #
     # PCI Expansion ROM functions
@@ -347,13 +421,11 @@ class Pci:
         # return results
         xrom_found, xrom = False, None
 
-        if logger().HAL:
-            logger().log("[pci] checking XROM in {:02X}:{:02X}.{:02X}".format(bus, dev, fun))
+        self.logger.log_hal("[pci] checking XROM in {:02X}:{:02X}.{:02X}".format(bus, dev, fun))
 
         cmd = self.read_word(bus, dev, fun, PCI_HDR_CMD_OFF)
         ms = ((cmd & PCI_HDR_CMD_MS_MASK) == PCI_HDR_CMD_MS_MASK)
-        if logger().HAL:
-            logger().log("[pci]   PCI CMD (memory space = {:d}): 0x{:04X}".format(ms, cmd))
+        self.logger.log_hal("[pci]   PCI CMD (memory space = {:d}): 0x{:04X}".format(ms, cmd))
 
         hdr_type = self.read_byte(bus, dev, fun, PCI_HDR_TYPE_OFF)
         _mf = hdr_type & PCI_HDR_TYPE_MF_MASK
@@ -361,36 +433,26 @@ class Pci:
         xrom_bar_off = PCI_HDR_TYPE1_XROM_BAR_OFF if _type == PCI_TYPE1 else PCI_HDR_TYPE0_XROM_BAR_OFF
 
         xrom_bar = self.read_dword(bus, dev, fun, xrom_bar_off)
-        orig_xrom_bar = xrom_bar
         xrom_exists = (xrom_bar != 0)
 
         if xrom_exists:
-            if logger().HAL:
-                logger().log("[pci]   device programmed XROM BAR: 0x{:08X}".format(xrom_bar))
+            self.logger.log_hal("[pci]   device programmed XROM BAR: 0x{:08X}".format(xrom_bar))
         else:
-            if logger().HAL:
-                logger().log("[pci]   device didn't program XROM BAR: 0x{:08X}".format(xrom_bar))
+            self.logger.log_hal("[pci]   device didn't program XROM BAR: 0x{:08X}".format(xrom_bar))
             if try_init:
                 self.write_dword(bus, dev, fun, xrom_bar_off, PCI_HDR_XROM_BAR_BASE_MASK)
                 xrom_bar = self.read_dword(bus, dev, fun, xrom_bar_off)
                 xrom_exists = (xrom_bar != 0)
-                if logger().HAL:
-                    logger().log("[pci]   returned 0x{:08X} after writing {:08X}".format(xrom_bar, PCI_HDR_XROM_BAR_BASE_MASK))
+                self.logger.log_hal("[pci]   returned 0x{:08X} after writing {:08X}".format(xrom_bar, PCI_HDR_XROM_BAR_BASE_MASK))
                 if xrom_exists and (xrom_addr is not None):
                     # device indicates XROM may exist. Initialize its base with supplied MMIO address
                     size_align = ~(xrom_bar & PCI_HDR_XROM_BAR_BASE_MASK)  # actual XROM alignment
                     if (xrom_addr & size_align) != 0:
-                        logger().log_warning("XROM address 0x{:08X} must be aligned at 0x{:08X}".format(xrom_addr, size_align))
+                        self.logger.log_warning("XROM address 0x{:08X} must be aligned at 0x{:08X}".format(xrom_addr, size_align))
                         return False, None
                     self.write_dword(bus, dev, fun, xrom_bar_off, (xrom_addr | PCI_HDR_XROM_BAR_EN_MASK))
                     xrom_bar = self.read_dword(bus, dev, fun, xrom_bar_off)
-                    if logger().HAL:
-                        logger().log("[pci]   programmed XROM BAR with 0x{:08X}".format(xrom_bar))
-
-                # restore original value of XROM BAR
-                # if orig_xrom_bar != xrom_bar:
-                #    self.write_dword( bus, dev, fun, xrom_bar_off, orig_xrom_bar )
-
+                    self.logger.log_hal("[pci]   programmed XROM BAR with 0x{:08X}".format(xrom_bar))
         #
         # At this point, a device indicates that XROM exists. Let's check if XROM is really there
         #
@@ -399,20 +461,18 @@ class Pci:
         xrom_size = ~xrom_base + 1
 
         if xrom_exists:
-            if logger().HAL:
-                logger().log("[pci]   XROM: BAR = 0x{:08X}, base = 0x{:08X}, size = 0x{:X}, en = {:d}".format(xrom_bar, xrom_base, xrom_size, xrom_en))
+            self.logger.log_hal("[pci]   XROM: BAR = 0x{:08X}, base = 0x{:08X}, size = 0x{:X}, en = {:d}".format(
+                xrom_bar, xrom_base, xrom_size, xrom_en))
             xrom = XROM(bus, dev, fun, xrom_en, xrom_base, xrom_size)
             if xrom_en and (xrom_base != PCI_HDR_XROM_BAR_BASE_MASK):
                 xrom.header = self.parse_XROM(xrom, xrom_dump)
                 xrom_found = (xrom.header is not None)
                 if xrom_found:
-                    if logger().HAL:
-                        logger().log("[pci]   XROM found at 0x{:08X}".format(xrom_base))
-                        logger().log(xrom.header)
+                    self.logger.log_hal("[pci]   XROM found at 0x{:08X}".format(xrom_base))
+                    self.logger.log_hal(xrom.header)
 
         if not xrom_found:
-            if logger().HAL:
-                logger().log("[pci]   XROM was not found")
+            self.logger.log_hal("[pci]   XROM was not found")
 
         return xrom_found, xrom
 
@@ -427,71 +487,3 @@ class Pci:
                 xrom.did = did
                 pci_xroms.append(xrom)
         return pci_xroms
-
-    #
-    # Enumerating PCI device MMIO and I/O ranges (BARs)
-    #
-
-    #
-    # Calculates actual size of MMIO BAR range
-    # @TODO: for 64-bit BARs need to write both BAR registers for size calculation
-    def calc_bar_size(self, bus, dev, fun, off, reg):
-        self.write_dword(bus, dev, fun, off, defines.MASK_32b)
-        reg1 = self.read_dword(bus, dev, fun, off)
-        self.write_dword(bus, dev, fun, off, reg)
-        size = (~(reg1 & PCI_HDR_BAR_BASE_MASK_MMIO) & defines.MASK_32b) + 1
-        return size
-    #
-    # Returns all I/O and MMIO BARs defined in the PCIe header of the device
-    # Returns array of elements in format (BAR_address, isMMIO, is64bit, BAR_reg_offset, BAR_reg_value)
-    # @TODO: need to account for Type 0 vs Type 1 headers
-
-    def get_device_bars(self, bus, dev, fun, bCalcSize=False):
-        _bars = []
-        off = PCI_HDR_BAR0_LO_OFF
-        size = defines.BOUNDARY_4KB
-        while off <= PCI_HDR_TYPE0_BAR2_HI_OFF:
-            reg = self.read_dword(bus, dev, fun, off)
-            if reg and reg != defines.MASK_32b:
-                # BAR is initialized
-                isMMIO = (PCI_HDR_BAR_IOMMIO_MMIO == (reg & PCI_HDR_BAR_IOMMIO_MASK))
-                if isMMIO:
-                    # MMIO BAR
-                    _type = (reg & PCI_HDR_BAR_TYPE_MASK) >> PCI_HDR_BAR_TYPE_SHIFT
-                    if PCI_HDR_BAR_TYPE_64B == _type:
-                        # 64-bit MMIO BAR
-                        if bCalcSize:
-                            size = self.calc_bar_size(bus, dev, fun, off, reg)
-                        off += PCI_HDR_BAR_STEP
-                        reg_hi = self.read_dword(bus, dev, fun, off)
-                        reg |= (reg_hi << 32)
-                        base = (reg & PCI_HDR_BAR_BASE_MASK_MMIO64)
-                        _bars.append((base, isMMIO, True, off - PCI_HDR_BAR_STEP, reg, size))
-                    elif PCI_HDR_BAR_TYPE_1MB == _type:
-                        # MMIO BAR below 1MB - not supported
-                        pass
-                    elif PCI_HDR_BAR_TYPE_32B == _type:
-                        # 32-bit only MMIO BAR
-                        base = (reg & PCI_HDR_BAR_BASE_MASK_MMIO)
-                        if bCalcSize:
-                            size = self.calc_bar_size(bus, dev, fun, off, reg)
-                        _bars.append((base, isMMIO, False, off, reg, size))
-                else:
-                    # I/O BAR
-                    # @TODO: calculate I/O BAR size, hardcoded to 0x100 for now
-                    base = (reg & PCI_HDR_BAR_BASE_MASK_IO)
-                    _bars.append((base, isMMIO, False, off, reg, 0x100))
-            off += PCI_HDR_BAR_STEP
-        return _bars
-
-    def get_DIDVID(self, bus, dev, fun):
-        didvid = self.read_dword(bus, dev, fun, 0x0)
-        vid = didvid & 0xFFFF
-        did = (didvid >> 16) & 0xFFFF
-        return (did, vid)
-
-    def is_enabled(self, bus, dev, fun):
-        (did, vid) = self.get_DIDVID(bus, dev, fun)
-        if (is_all_ones(vid, 2)) or (is_all_ones(did, 2)):
-            return False
-        return True
