@@ -30,7 +30,7 @@ import time
 
 from chipsec.command import BaseCommand
 from chipsec.file import read_file
-from chipsec.hal.spi_descriptor import parse_spi_flash_descriptor
+from chipsec.lib.spi_descriptor import parse_spi_flash_descriptor
 from argparse import ArgumentParser
 
 

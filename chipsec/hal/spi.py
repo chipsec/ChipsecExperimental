@@ -50,7 +50,7 @@ from chipsec.file import write_file, read_file
 from chipsec.logger import print_buffer, print_buffer_bytes
 from chipsec.hal import hal_base, mmio
 from chipsec.helper import oshelper
-from chipsec.hal.spi_jedec_ids import JEDEC_ID
+from chipsec.lib.spi_jedec_ids import JEDEC_ID
 from chipsec.exceptions import SpiRuntimeError
 
 SPI_READ_WRITE_MAX_DBC = 64
