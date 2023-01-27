@@ -1,5 +1,5 @@
 # CHIPSEC: Platform Security Assessment Framework
-# Copyright (c) 2010-2020, Intel Corporation
+# Copyright (c) 2010-2022, Intel Corporation
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -101,7 +101,7 @@ def pcrread(command_argv):
     Size = 0x0E000000
     try:
         Pcr = PCR[int(command_argv[0])]
-    except:
+    except Exception:
         if logger().HAL:
             logger().log_bad("Invalid PCR value\n")
         return
@@ -131,7 +131,7 @@ def startup(command_argv):
     """
     try:
         startupType = STARTUP[int(command_argv[0])]
-    except:
+    except Exception:
         if logger().HAL:
             logger().log_bad("Invalid startup type option value\n")
         return
@@ -143,7 +143,9 @@ def startup(command_argv):
 
 def continueselftest(command_argv):
     """
-    TPM_ContinueSelfTest informs the TPM that it should complete self-test of all TPM functions. The TPM may return success immediately and then perform the self-test, or it may perform the self-test and then return success or failure.
+    TPM_ContinueSelfTest informs the TPM that it should complete self-test of all TPM functions.
+    The TPM may return success immediately and then perform the self-test, or it may perform
+    the self-test and then return success or failure.
     """
     Size = 0x0A000000
     command = struct.pack(COMMAND_FORMAT, TPM_TAG_RQU_COMMAND, Size, TPM_ORD_CONTINUESELFTEST, 0, 0, 0)

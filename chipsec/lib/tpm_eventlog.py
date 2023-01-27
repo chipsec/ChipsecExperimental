@@ -67,8 +67,7 @@ class TcgPcrEvent:
         pcr_index, event_type, digest, event_size = fields
         event = log.read(event_size)
         if len(event) != event_size:
-            logger().log_warning("[tpm_eventlog] event data length "
-                                 "does not match the expected size")
+            logger().log_warning("[tpm_eventlog] event data length does not match the expected size")
         name = SML_EVENT_TYPE.get(event_type)
         kls = cls if isinstance(name, str) else name
         return kls(pcr_index, event_type, digest, event_size, event)
@@ -93,10 +92,8 @@ class SCRTMVersion(TcgPcrEvent):
         _str = super(SCRTMVersion, self).__str__()
         try:
             _str += "\n\t+ version: {}".format(self.version.decode("utf-16"))
-        except:
-            if logger().HAL:
-                logger().log_warning("[tpm_eventlog] CRTM Version is not "
-                                     "a valid string")
+        except Exception:
+            logger().log_hal("[tpm_eventlog] CRTM Version is not a valid string")
         return _str
 
 
