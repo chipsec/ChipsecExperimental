@@ -32,60 +32,59 @@ usage:
 """
 
 from typing import List
-from chipsec.logger import logger
+from chipsec.hal.hal_base import HALBase
 
 
-class PortIO:
+class PortIO(HALBase):
 
     def __init__(self, cs):
-        self.helper = cs.helper
-        self.cs = cs
+        super(PortIO, self).__init__(cs)
 
     def _read_port(self, io_port: int, size: int) -> int:
         value = self.helper.read_io_port(io_port, size)
-        if logger().HAL:
-            logger().log(f"[io] IN 0x{io_port:04X}: value = 0x{value:08X}, size = 0x{size:02X}")
+        if self.logger.HAL:
+            self.logger.log(f"[io] IN 0x{io_port:04X}: value = 0x{value:08X}, size = 0x{size:02X}")
         return value
 
     def _write_port(self, io_port: int, value: int, size: int) -> int:
-        if logger().HAL:
-            logger().log(f"[io] OUT 0x{io_port:04X}: value = 0x{value:08X}, size = 0x{size:02X}")
+        if self.logger.HAL:
+            self.logger.log(f"[io] OUT 0x{io_port:04X}: value = 0x{value:08X}, size = 0x{size:02X}")
         status = self.helper.write_io_port(io_port, value, size)
         return status
 
     def read_port_dword(self, io_port: int) -> int:
         value = self.helper.read_io_port(io_port, 4)
-        if logger().HAL:
-            logger().log(f"[io] reading dword from I/O port 0x{io_port:04X} -> 0x{value:08X}")
+        if self.logger.HAL:
+            self.logger.log(f"[io] reading dword from I/O port 0x{io_port:04X} -> 0x{value:08X}")
         return value
 
     def read_port_word(self, io_port: int) -> int:
         value = self.helper.read_io_port(io_port, 2)
-        if logger().HAL:
-            logger().log(f"[io] reading word from I/O port 0x{io_port:04X} -> 0x{value:04X}")
+        if self.logger.HAL:
+            self.logger.log(f"[io] reading word from I/O port 0x{io_port:04X} -> 0x{value:04X}")
         return value
 
     def read_port_byte(self, io_port: int) -> int:
         value = self.helper.read_io_port(io_port, 1)
-        if logger().HAL:
-            logger().log(f"[io] reading byte from I/O port 0x{io_port:04X} -> 0x{value:02X}")
+        if self.logger.HAL:
+            self.logger.log(f"[io] reading byte from I/O port 0x{io_port:04X} -> 0x{value:02X}")
         return value
 
     def write_port_byte(self, io_port: int, value: int) -> None:
-        if logger().HAL:
-            logger().log(f"[io] writing byte to I/O port 0x{io_port:04X} <- 0x{value:02X}")
+        if self.logger.HAL:
+            self.logger.log(f"[io] writing byte to I/O port 0x{io_port:04X} <- 0x{value:02X}")
         self.helper.write_io_port(io_port, value, 1)
         return
 
     def write_port_word(self, io_port: int, value: int) -> None:
-        if logger().HAL:
-            logger().log(f"[io] writing word to I/O port 0x{io_port:04X} <- 0x{value:04X}")
+        if self.logger.HAL:
+            self.logger.log(f"[io] writing word to I/O port 0x{io_port:04X} <- 0x{value:04X}")
         self.helper.write_io_port(io_port, value, 2)
         return
 
     def write_port_dword(self, io_port: int, value: int) -> None:
-        if logger().HAL:
-            logger().log(f"[io] writing dword to I/O port 0x{io_port:04X} <- 0x{value:08X}")
+        if self.logger.HAL:
+            self.logger.log(f"[io] writing dword to I/O port 0x{io_port:04X} <- 0x{value:08X}")
         self.helper.write_io_port(io_port, value, 4)
         return
 
@@ -105,7 +104,7 @@ class PortIO:
     def dump_IO(self, range_base: int, range_size: int, size: int = 1) -> None:
         n = range_size // size
         fmt = f'0{size * 2:d}X'
-        logger().log(f"[io] I/O register range [0x{range_base:04X}:0x{range_base:04X}+{range_size:04X}]:")
+        self.logger.log(f"[io] I/O register range [0x{range_base:04X}:0x{range_base:04X}+{range_size:04X}]:")
         for i in range(n):
             reg = self._read_port(range_base + i * size, size)
-            logger().log(f'+{size * i:04X}: {reg:{fmt}}')
+            self.logger.log(f'+{size * i:04X}: {reg:{fmt}}')

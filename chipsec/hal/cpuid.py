@@ -25,20 +25,17 @@ usage:
     >>> cpuid(0)
 """
 
-from chipsec.hal import hal_base
-from chipsec.logger import logger
+from chipsec.hal.hal_base import HALBase
 
 
-class CpuID(hal_base.HALBase):
+class CpuID(HALBase):
 
     def __init__(self, cs):
         super(CpuID, self).__init__(cs)
-        self.helper = cs.helper
 
     def cpuid(self, eax, ecx):
-        if logger().HAL:
-            logger().log("[cpuid] in: EAX=0x{:08X}, ECX=0x{:08X}".format(eax, ecx))
+        self.logger.log_hal("[cpuid] in: EAX=0x{:08X}, ECX=0x{:08X}".format(eax, ecx))
         (eax, ebx, ecx, edx) = self.helper.cpuid(eax, ecx)
-        if logger().HAL:
-            logger().log("[cpuid] out: EAX=0x{:08X}, EBX=0x{:08X}, ECX=0x{:08X}, EDX=0x{:08X}".format(eax, ebx, ecx, edx))
+        self.logger.log_hal("[cpuid] out: EAX=0x{:08X}, EBX=0x{:08X}, ECX=0x{:08X}, EDX=0x{:08X}".format(
+            eax, ebx, ecx, edx))
         return (eax, ebx, ecx, edx)

@@ -204,7 +204,6 @@ class Pci:
 
     def __init__(self, cs):
         self.cs = cs
-        self.helper = cs.helper
 
     #
     # Access to PCI configuration registers

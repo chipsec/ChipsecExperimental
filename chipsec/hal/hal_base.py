@@ -30,3 +30,4 @@ class HALBase:
     def __init__(self, cs):
         self.cs = cs
         self.logger = chipsec.logger.logger()
+        self.helper = self.cs.helper

@@ -40,7 +40,6 @@ class IGD(hal_base.HALBase):
 
     def __init__(self, cs):
         super(IGD, self).__init__(cs)
-        self.helper = cs.helper
         self.is_legacy = None
         self.enabled = None
 

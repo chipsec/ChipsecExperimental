@@ -37,7 +37,6 @@ class VMM:
 
     def __init__(self, cs):
         self.cs = cs
-        self.helper = cs.helper
         self.output = ''
         (self.membuf0_va, self.membuf0_pa) = (0, 0)
         (self.membuf1_va, self.membuf1_pa) = (0, 0)

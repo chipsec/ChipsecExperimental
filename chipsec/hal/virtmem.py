@@ -38,7 +38,6 @@ from chipsec.hal import hal_base
 class VirtMemory(hal_base.HALBase):
     def __init__(self, cs):
         super(VirtMemory, self).__init__(cs)
-        self.helper = cs.helper
 
     ####################################################################################
     #

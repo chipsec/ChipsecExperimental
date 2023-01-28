@@ -89,7 +89,6 @@ class MsgBus(hal_base.HALBase):
 
     def __init__(self, cs):
         super(MsgBus, self).__init__(cs)
-        self.helper = cs.helper
         self.p2sbHide = None
 
     def __MB_MESSAGE_MCR(self, port, reg, opcode):

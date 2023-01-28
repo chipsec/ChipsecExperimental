@@ -197,7 +197,6 @@ class TPM_RESPONSE_HEADER(namedtuple('TPM_RESPONSE_HEADER', 'ResponseTag DataSiz
 class TPM(hal_base.HALBase):
     def __init__(self, cs):
         super(TPM, self).__init__(cs)
-        self.helper = cs.helper
         self.TPM_BASE = int(self.cs.Cfg.MEMORY_RANGES["TPM"]["address"], 16)
 
     def command(self, commandName, locality, command_argv):

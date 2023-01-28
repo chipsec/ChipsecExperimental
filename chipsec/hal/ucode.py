@@ -31,6 +31,7 @@ usage:
 import struct
 import os
 
+from chipsec.hal.hal_base import HALBase
 from chipsec.logger import logger
 from chipsec.file import read_file
 
@@ -46,22 +47,22 @@ class UcodeUpdateHeader(namedtuple('UcodeUpdateHeader', 'header_version update_r
     __slots__ = ()
 
     def __str__(self):
-        return """
+        return f"""
 Microcode Update Header
 --------------------------------
-Header Version      : 0x{:08X}
-Update Revision     : 0x{:08X}
-Date                : 0x{:08X}
-Processor Signature : 0x{:08X}
-Checksum            : 0x{:08X}
-Loader Revision     : 0x{:08X}
-Processor Flags     : 0x{:08X}
-Update Data Size    : 0x{:08X}
-Total Size          : 0x{:08X}
-Reserved1           : 0x{:08X}
-Reserved2           : 0x{:08X}
-Reserved3           : 0x{:08X}
-""".format(self.header_version, self.update_revision, self.date, self.processor_signature, self.checksum, self.loader_revision, self.processor_flags, self.data_size, self.total_size, self.reserved1, self.reserved2, self.reserved3)
+Header Version      : 0x{self.header_version:08X}
+Update Revision     : 0x{self.update_revision:08X}
+Date                : 0x{self.date:08X}
+Processor Signature : 0x{self.processor_signature:08X}
+Checksum            : 0x{self.checksum:08X}
+Loader Revision     : 0x{self.loader_revision:08X}
+Processor Flags     : 0x{self.processor_flags:08X}
+Update Data Size    : 0x{self.data_size:08X}
+Total Size          : 0x{self.total_size:08X}
+Reserved1           : 0x{self.reserved1:08X}
+Reserved2           : 0x{self.reserved2:08X}
+Reserved3           : 0x{self.reserved3:08X}
+"""
 
 
 UCODE_HEADER_SIZE = 0x30
@@ -69,26 +70,23 @@ UCODE_HEADER_SIZE = 0x30
 
 def dump_ucode_update_header(pdb_ucode_buffer):
     ucode_header = UcodeUpdateHeader(*struct.unpack_from('12I', pdb_ucode_buffer))
-    if logger().HAL:
-        logger().log(ucode_header)
+    logger().log_hal(ucode_header)
     return ucode_header
 
 
 def read_ucode_file(ucode_filename):
     ucode_buf = read_file(ucode_filename)
     if (ucode_filename.endswith('.pdb')):
-        if logger().HAL:
-            logger().log("[ucode] PDB file '{:256}' has ucode update header (size = 0x{:X})".format(ucode_filename, UCODE_HEADER_SIZE))
+        logger().log_hal(f"[ucode] PDB file '{ucode_filename:256}' has ucode update header (size = 0x{UCODE_HEADER_SIZE:X})")
         dump_ucode_update_header(ucode_buf)
         return ucode_buf[UCODE_HEADER_SIZE:]
     else:
         return ucode_buf
 
 
-class Ucode:
+class Ucode(HALBase):
     def __init__(self, cs):
-        self.helper = cs.helper
-        self.cs = cs
+        super(Ucode, self).__init__(cs)
 
     # @TODO remove later/replace with msr.get_cpu_thread_count()
     def get_cpu_thread_count(self):
@@ -96,23 +94,21 @@ class Ucode:
         return thread_count
 
     def ucode_update_id(self, cpu_thread_id):
-        #self.helper.write_msr( cpu_thread_id, IA32_MSR_BIOS_SIGN_ID, 0, 0 )
-        #self.helper.cpuid( cpu_thread_id, 0 )
+        # self.helper.write_msr( cpu_thread_id, IA32_MSR_BIOS_SIGN_ID, 0, 0 )
+        # self.helper.cpuid( cpu_thread_id, 0 )
         (bios_sign_id_lo, bios_sign_id_hi) = self.helper.read_msr(cpu_thread_id, IA32_MSR_BIOS_SIGN_ID)
         ucode_update_id = bios_sign_id_hi
 
         if (bios_sign_id_lo & IA32_MSR_BIOS_SIGN_ID_STATUS):
-            if logger().HAL:
-                logger().log("[ucode] CPU{:d}: last Microcode update failed (current microcode id = 0x{:08X})".format(cpu_thread_id, ucode_update_id))
+            self.logger.log_hal(f'[ucode] CPU{cpu_thread_id:d}: last Microcode update failed (current microcode id = 0x{ucode_update_id:08X})')
         else:
-            if logger().HAL:
-                logger().log("[ucode] CPU{:d}: Microcode update ID = 0x{:08X}".format(cpu_thread_id, ucode_update_id))
+            self.logger.log_hal(f'[ucode] CPU{cpu_thread_id:d}: Microcode update ID = 0x{ucode_update_id:08X}')
 
         return ucode_update_id
 
     def update_ucode_all_cpus(self, ucode_file):
         if not (os.path.exists(ucode_file) and os.path.isfile(ucode_file)):
-            logger().log_error("Ucode file not found: '{:.256}'".format(ucode_file))
+            self.logger.log_error("Ucode file not found: '{:.256}'".format(ucode_file))
             return False
         ucode_buf = read_ucode_file(ucode_file)
         if (ucode_buf is not None) and (len(ucode_buf) > 0):
@@ -122,13 +118,12 @@ class Ucode:
 
     def update_ucode(self, cpu_thread_id, ucode_file):
         if not (os.path.exists(ucode_file) and os.path.isfile(ucode_file)):
-            logger().log_error("Ucode file not found: '{:.256}'".format(ucode_file))
+            self.logger.log_error("Ucode file not found: '{:.256}'".format(ucode_file))
             return False
         _ucode_buf = read_ucode_file(ucode_file)
         return self.load_ucode_update(cpu_thread_id, _ucode_buf)
 
     def load_ucode_update(self, cpu_thread_id, ucode_buf):
-        if logger().HAL:
-            logger().log("[ucode] loading microcode update on CPU{:d}".format(cpu_thread_id))
+        self.logger.log_hal("[ucode] loading microcode update on CPU{:d}".format(cpu_thread_id))
         self.helper.load_ucode_update(cpu_thread_id, ucode_buf)
         return self.ucode_update_id(cpu_thread_id)

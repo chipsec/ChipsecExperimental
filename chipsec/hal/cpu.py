@@ -43,7 +43,6 @@ VMM_KVM = 0x4
 class CPU(hal_base.HALBase):
     def __init__(self, cs):
         super(CPU, self).__init__(cs)
-        self.helper = cs.helper
 
     def read_cr(self, cpu_thread_id, cr_number):
         value = self.helper.read_cr(cpu_thread_id, cr_number)
@@ -114,7 +113,7 @@ class CPU(hal_base.HALBase):
             table_header, APIC_object, table_header_blob, table_blob = apic
             for structure in APIC_object.apic_structs:
                 if 0x00 == structure.Type:
-                    if not structure.ACICID in dACPIID:
+                    if structure.ACICID not in dACPIID:
                         if 1 == structure.Flags:
                             dACPIID[structure.APICID] = structure.ACPIProcID
         return len(dACPIID)

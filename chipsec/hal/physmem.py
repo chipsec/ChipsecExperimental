@@ -37,7 +37,6 @@ from chipsec.logger import print_buffer_bytes
 class Memory(HALBase):
     def __init__(self, cs):
         super(Memory, self).__init__(cs)
-        self.helper = cs.helper
 
     ####################################################################################
     #
