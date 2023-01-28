@@ -19,12 +19,6 @@
 #
 
 
-# -------------------------------------------------------------------------------
-#
-# CHIPSEC: Platform Hardware Security Assessment Framework
-#
-# -------------------------------------------------------------------------------
-
 """
 UEFI firmware image parsing and manipulation functionality
 
@@ -41,21 +35,26 @@ from uuid import UUID
 
 from chipsec.logger import logger
 from chipsec.file import write_file, read_file
-from chipsec.hal.uefi_compression import COMPRESSION_TYPE_LZMA, COMPRESSION_TYPE_EFI_STANDARD, COMPRESSION_TYPES_ALGORITHMS, COMPRESSION_TYPE_UNKNOWN
-from chipsec.hal.uefi_common import bit_set, EFI_GUID_SIZE, EFI_GUID_FMT
-from chipsec.hal.uefi_platform import FWType, ParsePFS, fw_types, EFI_NVRAM_GUIDS, EFI_PLATFORM_FS_GUIDS, NVAR_NVRAM_FS_FILE
+from chipsec.lib.uefi_compression import COMPRESSION_TYPE_LZMA, COMPRESSION_TYPE_EFI_STANDARD
+from chipsec.lib.uefi_compression import COMPRESSION_TYPES_ALGORITHMS, COMPRESSION_TYPE_UNKNOWN
+from chipsec.lib.uefi_common import EFI_GUID_SIZE, EFI_GUID_FMT, FWType, fw_types, bit_set
+from chipsec.lib.uefi_platform import ParsePFS
+from chipsec.lib.uefi_common import EFI_NVRAM_GUIDS, EFI_PLATFORM_FS_GUIDS, NVAR_NVRAM_FS_FILE
 
-from chipsec.hal.uefi import identify_EFI_NVRAM, parse_EFI_variables
-from chipsec.hal.uefi_fv import EFI_SECTION_PE32, EFI_SECTION_TE, EFI_SECTION_PIC, EFI_SECTION_COMPATIBILITY16, EFI_FIRMWARE_FILE_SYSTEM2_GUID
-from chipsec.hal.uefi_fv import EFI_FIRMWARE_FILE_SYSTEM_GUID, EFI_SECTIONS_EXE, EFI_SECTION_USER_INTERFACE, EFI_SECTION_GUID_DEFINED
-from chipsec.hal.uefi_fv import EFI_GUID_DEFINED_SECTION, EFI_GUID_DEFINED_SECTION_size, NextFwFile, NextFwFileSection, NextFwVolume, GetFvHeader
-from chipsec.hal.uefi_fv import EFI_CRC32_GUIDED_SECTION_EXTRACTION_PROTOCOL_GUID, LZMA_CUSTOM_DECOMPRESS_GUID, TIANO_DECOMPRESSED_GUID
-from chipsec.hal.uefi_fv import EFI_CERT_TYPE_RSA_2048_SHA256_GUID, EFI_CERT_TYPE_RSA_2048_SHA256_GUID_size, EFI_SECTION, EFI_FV, EFI_FILE
-from chipsec.hal.uefi_fv import EFI_FIRMWARE_CONTENTS_SIGNED_GUID, WIN_CERT_TYPE_EFI_GUID, WIN_CERTIFICATE_size, WIN_CERTIFICATE
-from chipsec.hal.uefi_fv import EFI_SECTION_COMPRESSION, EFI_SECTION_FIRMWARE_VOLUME_IMAGE, EFI_SECTION_RAW, SECTION_NAMES, DEF_INDENT
-from chipsec.hal.uefi_fv import FILE_TYPE_NAMES, EFI_FS_GUIDS, EFI_FILE_HEADER_INVALID, EFI_FILE_HEADER_VALID, EFI_FILE_HEADER_CONSTRUCTION
-from chipsec.hal.uefi_fv import EFI_COMPRESSION_SECTION_size, EFI_FV_FILETYPE_ALL, EFI_FV_FILETYPE_FFS_PAD, EFI_FVB2_ERASE_POLARITY, EFI_FV_FILETYPE_RAW
-from chipsec.hal.uefi_compression import UEFICompression
+from chipsec.lib.uefi_variables import identify_EFI_NVRAM, parse_EFI_variables
+from chipsec.lib.uefi_fv import EFI_SECTION_PE32, EFI_SECTION_TE, EFI_SECTION_PIC, EFI_SECTION_COMPATIBILITY16
+from chipsec.lib.uefi_fv import EFI_SECTIONS_EXE, EFI_SECTION_USER_INTERFACE, EFI_SECTION_GUID_DEFINED, GetFvHeader
+from chipsec.lib.uefi_fv import EFI_GUID_DEFINED_SECTION, EFI_GUID_DEFINED_SECTION_size, NextFwFile, NextFwFileSection
+from chipsec.lib.uefi_fv import NextFwVolume, TIANO_DECOMPRESSED_GUID, EFI_FV, EFI_FILE, SECTION_NAMES, DEF_INDENT
+from chipsec.lib.uefi_fv import EFI_CRC32_GUIDED_SECTION_EXTRACTION_PROTOCOL_GUID, LZMA_CUSTOM_DECOMPRESS_GUID
+from chipsec.lib.uefi_fv import EFI_CERT_TYPE_RSA_2048_SHA256_GUID, EFI_CERT_TYPE_RSA_2048_SHA256_GUID_size
+from chipsec.lib.uefi_fv import EFI_SECTION, EFI_FILE_HEADER_CONSTRUCTION, EFI_FVB2_ERASE_POLARITY, EFI_FV_FILETYPE_RAW
+from chipsec.lib.uefi_fv import EFI_SECTION_COMPRESSION, EFI_SECTION_FIRMWARE_VOLUME_IMAGE, EFI_SECTION_RAW
+from chipsec.lib.uefi_fv import FILE_TYPE_NAMES, EFI_FS_GUIDS, EFI_FILE_HEADER_INVALID, EFI_FILE_HEADER_VALID
+from chipsec.lib.uefi_fv import EFI_COMPRESSION_SECTION_size, EFI_FV_FILETYPE_ALL, EFI_FV_FILETYPE_FFS_PAD
+from chipsec.lib.uefi_fv import EFI_FIRMWARE_FILE_SYSTEM2_GUID, EFI_FIRMWARE_FILE_SYSTEM_GUID, EFI_FIRMWARE_CONTENTS_SIGNED_GUID
+from chipsec.lib.uefi_fv import WIN_CERTIFICATE_size, WIN_CERTIFICATE, WIN_CERT_TYPE_EFI_GUID
+from chipsec.lib.uefi_compression import UEFICompression
 
 CMD_UEFI_FILE_REMOVE = 0
 CMD_UEFI_FILE_INSERT_BEFORE = 1
@@ -74,17 +73,16 @@ WRITE_ALL_HASHES = False
 def decompress_section_data(section_dir_path, sec_fs_name, compressed_data, compression_type):
     uefi_uc = UEFICompression()
     uncompressed_name = os.path.join(section_dir_path, sec_fs_name)
-    if logger().HAL:
-        logger().log("[uefi] decompressing EFI binary (type = 0x{:X})\n       {} ->\n".format(compression_type, uncompressed_name))
+    logger().log_hal("[uefi] decompressing EFI binary (type = 0x{:X})".format(compression_type))
+    logger().log_hal("       {} ->\n".format(uncompressed_name))
     uncompressed_image = uefi_uc.decompress_EFI_binary(compressed_data, compression_type)
     return uncompressed_image
 
 
 def compress_image(image, compression_type):
     uefi_uc = UEFICompression()
-    if logger().HAL:
-        logger().log("[uefi] compressing EFI binary (type = 0x{:X})\n".format(compression_type))
-    compressed_image = uefi_uc.compress_EFI_binary(image,  compression_type)
+    logger().log_hal("[uefi] compressing EFI binary (type = 0x{:X})\n".format(compression_type))
+    compressed_image = uefi_uc.compress_EFI_binary(image, compression_type)
     return compressed_image
 
 
@@ -164,9 +162,9 @@ def build_efi_modules_tree(fwtype, data, Size, offset, polarity):
                 pass
         elif sec.Type == EFI_SECTION_GUID_DEFINED:
             if len(sec.Image) < sec.HeaderSize + EFI_GUID_DEFINED_SECTION_size:
-                logger().log_warning("EFI Section seems to be malformed")
+                sec.add_comment("EFI Section seems to be malformed")
                 if len(sec.Image) < sec.HeaderSize + EFI_GUID_SIZE:
-                    logger().log_warning("Creating fake GUID of 0000-00-00-0000000")
+                    sec.add_comment("Creating fake GUID of 0000-00-00-0000000")
                     guid0 = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
                 else:
                     guid0 = struct.unpack(EFI_GUID_FMT, sec.Image[sec.HeaderSize:sec.HeaderSize + EFI_GUID_SIZE])[0]
@@ -174,8 +172,8 @@ def build_efi_modules_tree(fwtype, data, Size, offset, polarity):
             else:
                 guid0, sec.DataOffset, sec.Attributes = struct.unpack(EFI_GUID_DEFINED_SECTION, sec.Image[sec.HeaderSize:sec.HeaderSize + EFI_GUID_DEFINED_SECTION_size])
             if not isinstance(guid0, bytes):
-                logger().log_warning("GUID is corrupted")
-                logger().log_warning("Creating fake GUID of 0000-00-00-0000000")
+                sec.add_comment("GUID is corrupted")
+                sec.add_comment("Creating fake GUID of 0000-00-00-0000000")
                 guid0 = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
 
             sec.Guid = UUID(bytes_le=guid0)
@@ -188,13 +186,13 @@ def build_efi_modules_tree(fwtype, data, Size, offset, polarity):
                 else:
                     d = decompress_section_data("", sec_fs_name, sec.Image[sec.DataOffset:], COMPRESSION_TYPE_EFI_STANDARD)
                 if d is None:
-                    sec.Comments = "Unable to decompress image"
+                    sec.add_comments("Unable to decompress image")
                     d = decompress_section_data("", sec_fs_name, sec.Image[sec.HeaderSize + EFI_GUID_DEFINED_SECTION_size:], COMPRESSION_TYPE_UNKNOWN)
                 if d:
                     sec.children = build_efi_modules_tree(fwtype, d, len(d), 0, polarity)
             elif sec.Guid == EFI_CERT_TYPE_RSA_2048_SHA256_GUID:
                 offset = sec.DataOffset + EFI_CERT_TYPE_RSA_2048_SHA256_GUID_size
-                sec.Comments = "Certificate Type RSA2048/SHA256"
+                sec.add_comment("Certificate Type RSA2048/SHA256")
                 if len(sec.Image) > offset:
                     sec.children = build_efi_modules_tree(fwtype, sec.Image[offset:], len(sec.Image[offset:]), 0, polarity)
             elif sec.Guid == EFI_FIRMWARE_CONTENTS_SIGNED_GUID:
@@ -213,6 +211,7 @@ def build_efi_modules_tree(fwtype, data, Size, offset, polarity):
                 offset = sec.DataOffset + length
                 if len(sec.Image) > offset:
                     sec.children = build_efi_modules_tree(fwtype, sec.Image[offset:], len(sec.Image[offset:]), 0, polarity)
+
             else:
                 sec.children = build_efi_model(sec.Image[sec.HeaderSize:], fwtype)
 
@@ -247,7 +246,6 @@ def build_efi_modules_tree(fwtype, data, Size, offset, polarity):
 # Input arguements:
 # fv_image - fv_image containing files
 # fwtype - platform specific firmware type used to detect NVRAM format (VSS, EVSA, NVAR...)
-
 
 
 def build_efi_file_tree(fv_img, fwtype):
@@ -511,24 +509,21 @@ def decode_uefi_region(pth, fname, fwtype, filetype=[]):
         os.makedirs(fv_pth)
 
     # Decoding UEFI Firmware Volumes
-    if logger().HAL:
-        logger().log("[spi_uefi] decoding UEFI firmware volumes...")
+    logger().log_hal("[spi_uefi] decoding UEFI firmware volumes...")
     parse_uefi_region_from_file(fname, fwtype, fv_pth, filetype)
     # If a specific filetype is wanted, there is no need to check for EFI Variables
     if filetype:
         return
 
     # Decoding EFI Variables NVRAM
-    if logger().HAL:
-        logger().log("[spi_uefi] decoding UEFI NVRAM...")
+    logger().log_hal("[spi_uefi] decoding UEFI NVRAM...")
     region_data = read_file(fname)
     if fwtype is None:
         fwtype = identify_EFI_NVRAM(region_data)
         if fwtype is None:
             return
     elif fwtype not in fw_types:
-        if logger().HAL:
-            logger().log_error("unrecognized NVRAM type {}".format(fwtype))
+        logger().log_hal("unrecognized NVRAM type {}".format(fwtype))
         return
     nvram_fname = os.path.join(bios_pth, ('nvram_{}'.format(fwtype)))
     logger().set_log_file((nvram_fname + '.nvram.lst'))

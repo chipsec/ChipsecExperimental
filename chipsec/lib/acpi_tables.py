@@ -33,7 +33,7 @@ from uuid import UUID
 from typing import Optional, Tuple
 
 from chipsec.logger import logger, dump_buffer_bytes
-from chipsec.hal.uefi_common import EFI_GUID_FMT, EFI_GUID_STR
+from chipsec.lib.uefi_common import EFI_GUID_FMT, EFI_GUID_STR
 
 
 class ACPI_TABLE:

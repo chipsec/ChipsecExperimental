@@ -27,7 +27,7 @@ import struct
 from typing import Optional
 from uuid import UUID
 from chipsec.defines import bytestostring
-from chipsec.hal.uefi_common import get_3b_size, bit_set, align
+from chipsec.lib.uefi_common import get_3b_size, bit_set, align
 from chipsec.logger import logger
 
 ################################################################################################
@@ -70,25 +70,10 @@ EFI_FV_FILETYPE_MM_STANDALONE = 0x0e
 EFI_FV_FILETYPE_MM_CORE_STANDALONE = 0x0f
 EFI_FV_FILETYPE_FFS_PAD = 0xf0
 
-FILE_TYPE_NAMES = {
-    0x00: 'FV_ALL',
-    0x01: 'FV_RAW',
-    0x02: 'FV_FREEFORM',
-    0x03: 'FV_SECURITY_CORE',
-    0x04: 'FV_PEI_CORE',
-    0x05: 'FV_DXE_CORE',
-    0x06: 'FV_PEIM',
-    0x07: 'FV_DRIVER',
-    0x08: 'FV_COMBINED_PEIM_DRIVER',
-    0x09: 'FV_APPLICATION',
-    0x0A: 'FV_MM',
-    0x0B: 'FV_FVIMAGE',
-    0x0C: 'FV_COMBINED_MM_DXE',
-    0x0D: 'FV_MM_CORE',
-    0x0E: 'FV_MM_STANDALONE',
-    0x0F: 'FV_MM_CORE_STANDALONE',
-    0xF0: 'FV_FFS_PAD'
-}
+FILE_TYPE_NAMES = {0x00: 'FV_ALL', 0x01: 'FV_RAW', 0x02: 'FV_FREEFORM', 0x03: 'FV_SECURITY_CORE', 0x04: 'FV_PEI_CORE',
+                   0x05: 'FV_DXE_CORE', 0x06: 'FV_PEIM', 0x07: 'FV_DRIVER', 0x08: 'FV_COMBINED_PEIM_DRIVER',
+                   0x09: 'FV_APPLICATION', 0x0A: 'FV_MM', 0x0B: 'FV_FVIMAGE', 0x0C: 'FV_COMBINED_MM_DXE',
+                   0x0D: 'FV_MM_CORE', 0x0E: 'FV_MM_STANDALONE', 0x0F: 'FV_MM_CORE_STANDALONE', 0xF0: 'FV_FFS_PAD'}
 
 EFI_SECTION_ALL = 0x00
 EFI_SECTION_COMPRESSION = 0x01
@@ -266,6 +251,9 @@ class EFI_SECTION(EFI_MODULE):
         _ui_str = self.ui_string.encode('ascii', 'ignore') if self.ui_string else ''
         return f'{_name} section of binary {{{_guid}}} {_ui_str}'
 
+    def add_comment(self, comment):
+        self.Comments = "{}\n{}".format(self.Comments, comment)
+
     def __str__(self):
         _s = "{}+{:08X}h {}: Type {:02X}h".format(self.indent, self.Offset, self.name(), self.Type)
         if self.Guid:
@@ -358,28 +346,24 @@ def GetFvHeader(buffer, off=0):
         FvLength, Signature, Attributes, HeaderLength, Checksum, ExtHeaderOffset,    \
         Reserved, Revision = struct.unpack(EFI_FIRMWARE_VOLUME_HEADER, buffer[off:off + EFI_FIRMWARE_VOLUME_HEADER_size])
     numblocks, lenblock = struct.unpack(EFI_FV_BLOCK_MAP_ENTRY, buffer[fof:fof + struct.calcsize(EFI_FV_BLOCK_MAP_ENTRY)])
-    if logger().HAL:
-        logger().log('{}'.format(
-            '''
-        \nFV volume offset: 0x{:08X}
-        \tFvLength:         0x{:08X}
-        \tAttributes:       0x{:08X}
-        \tHeaderLength:     0x{:04X}
-        \tChecksum:         0x{:04X}
-        \tRevision:         0x{:02X}
-        \tExtHeaderOffset:  0x{:02X}
-        \tReserved:         0x{:02X}
-        FFS Guid:    {}
-        '''.format(fof, FvLength, Attributes, HeaderLength, Checksum, Revision, ExtHeaderOffset, Reserved, UUID(bytes_le=FileSystemGuid0))
-        ))
+    logger().log_hal(f'''
+        \nFV volume offset: 0x{fof:08X}
+        \tFvLength:         0x{FvLength:08X}
+        \tAttributes:       0x{Attributes:08X}
+        \tHeaderLength:     0x{HeaderLength:04X}
+        \tChecksum:         0x{Checksum:04X}
+        \tRevision:         0x{Revision:02X}
+        \tExtHeaderOffset:  0x{ExtHeaderOffset:02X}
+        \tReserved:         0x{Reserved:02X}
+        FFS Guid:    {UUID(bytes_le=FileSystemGuid0)}
+        ''')
     while not (numblocks == 0 and lenblock == 0):
         fof += EFI_FV_BLOCK_MAP_ENTRY_SZ
         if (fof + EFI_FV_BLOCK_MAP_ENTRY_SZ) >= len(buffer):
             return (0, 0, 0)
         if numblocks != 0:
-            if logger().HAL:
-                logger().log("Num blocks:   0x{:08X}\n".format(numblocks))
-                logger().log("block Len:    0x{:08X}\n".format(lenblock))
+            logger().log_hal(f"Num blocks:   0x{numblocks:08X}\n")
+            logger().log_hal(f"block Len:    0x{lenblock:08X}\n")
             size = size + (numblocks * lenblock)
         numblocks, lenblock = struct.unpack(EFI_FV_BLOCK_MAP_ENTRY, buffer[fof:fof + EFI_FV_BLOCK_MAP_ENTRY_SZ])
     if FvLength != size:
@@ -408,10 +392,11 @@ def NextFwFile(FvImage, FvLength, fof, polarity):
             blank = b"\x00" * file_header_size
 
         if (blank == FvImage[cur_offset:cur_offset + file_header_size]):
-            #next_offset = fof + 8
+            # next_offset = fof + 8
             cur_offset += 8
             continue
-        Name0, IntegrityCheck, Type, Attributes, Size, State = struct.unpack(EFI_FFS_FILE_HEADER, FvImage[cur_offset:cur_offset + file_header_size])
+        Name0, IntegrityCheck, Type, Attributes, Size, State = struct.unpack(
+            EFI_FFS_FILE_HEADER, FvImage[cur_offset:cur_offset + file_header_size])
         # Get File Header Size
         if Attributes & FFS_ATTRIB_LARGE_FILE:
             header_size = struct.calcsize(EFI_FFS_FILE_HEADER2)
@@ -431,8 +416,7 @@ def NextFwFile(FvImage, FvLength, fof, polarity):
             break
         # Get next_offset
         update_or_deleted = (bit_set(State, EFI_FILE_MARKED_FOR_UPDATE, polarity)) or (bit_set(State, EFI_FILE_DELETED, polarity))
-        if not((bit_set(State, EFI_FILE_DATA_VALID, polarity)) or update_or_deleted):
-            # else:
+        if not ((bit_set(State, EFI_FILE_DATA_VALID, polarity)) or update_or_deleted):
             cur_offset = align(cur_offset + 1, 8)
             continue
         Name = UUID(bytes_le=Name0)
@@ -456,7 +440,8 @@ def NextFwFileSection(sections, ssize, sof, polarity):
     curr_offset = sof
     ssize = min(ssize, len(sections))
     while curr_offset + EFI_COMMON_SECTION_HEADER_size < ssize:
-        Size, Type = struct.unpack(EFI_COMMON_SECTION_HEADER, sections[curr_offset:curr_offset + EFI_COMMON_SECTION_HEADER_size])
+        Size, Type = struct.unpack(
+            EFI_COMMON_SECTION_HEADER, sections[curr_offset:curr_offset + EFI_COMMON_SECTION_HEADER_size])
         Size = get_3b_size(Size)
         Header_Size = EFI_COMMON_SECTION_HEADER_size
         if Size == 0xFFFFFF and (curr_offset + EFI_COMMON_SECTION_HEADER_size + struct.calcsize("I")) < ssize:

@@ -19,12 +19,6 @@
 #
 
 
-# -------------------------------------------------------------------------------
-#
-# CHIPSEC: Platform Hardware Security Assessment Framework
-#
-# -------------------------------------------------------------------------------
-
 """
 UEFI image search auxilliary functionality
 
@@ -37,7 +31,7 @@ import binascii
 from uuid import UUID
 
 from chipsec import defines
-from chipsec.hal.spi_uefi import EFI_SECTION
+from chipsec.lib.spi_uefi import EFI_SECTION
 from chipsec.logger import logger
 
 #
@@ -82,11 +76,11 @@ from chipsec.logger import logger
 # Unless it's a EFI binary:
 # - with MD5 hash "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH" AND SHA-1 hash "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH"
 #
-# 
+#
 # "UEFI_vulnerabilityY": {
 #     "description": "Something else to be scared of!",
 #     "match": {
-#       "vulnY_rule1": {"guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "cpuid": "12345,abcde" }  
+#       "vulnY_rule1": {"guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "cpuid": "12345,abcde" }
 #     }
 #   }
 #
