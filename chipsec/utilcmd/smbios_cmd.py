@@ -29,7 +29,6 @@ Examples:
 """
 
 from argparse import ArgumentParser
-from time import time
 from chipsec.command import BaseCommand
 from chipsec.hal.smbios import SMBIOS
 from chipsec.logger import print_buffer
@@ -87,8 +86,6 @@ class smbios_cmd(BaseCommand):
             self.logger.log('==================================================================')
 
     def run(self):
-        t = time()
-
         # Create and initialize SMBIOS object for commands to use
         try:
             self.logger.log('[CHIPSEC] Attempting to detect SMBIOS structures')
@@ -102,7 +99,6 @@ class smbios_cmd(BaseCommand):
             return
 
         self.func()
-        self.logger.log('[CHIPSEC] (smbios) time elapsed {:.3f}'.format(time() - t))
 
 
 commands = {'smbios': smbios_cmd}

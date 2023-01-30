@@ -44,8 +44,6 @@ Examples:
 >>> chipsec_util pci cmd 1
 """
 
-import time
-
 from chipsec.command import BaseCommand
 from chipsec.logger import pretty_print_hex_buffer
 from argparse import ArgumentParser
@@ -193,11 +191,7 @@ class PCICommand(BaseCommand):
             self.logger.log('{:02X}:{:02X}.{:X} | {:04X}:{:04X} | {:04X} | {:02X}  | {:02X}'.format(b, d, f, vid, did, cmd_reg, dev_cls, dev_sub_cls))
 
     def run(self):
-        t = time.time()
-
         self.func()
-
-        self.logger.log("[CHIPSEC] (pci) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'pci': PCICommand}

@@ -35,7 +35,6 @@ Examples:
 >>> chipsec_util ec index
 """
 
-import time
 from argparse import ArgumentParser
 
 from chipsec.command import BaseCommand
@@ -120,14 +119,12 @@ class ECCommand(BaseCommand):
             print_buffer(mem)
 
     def run(self):
-        t = time.time()
         try:
             self._ec = EC(self.cs)
         except BaseException as msg:
             print(msg)
             return
         self.func()
-        self.logger.log("[CHIPSEC] (ec) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'ec': ECCommand}

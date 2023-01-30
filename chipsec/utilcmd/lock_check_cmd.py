@@ -18,7 +18,6 @@
 # chipsec@intel.com
 #
 
-from time import time
 from argparse import ArgumentParser
 
 from chipsec.command import BaseCommand
@@ -150,10 +149,8 @@ KEY:
         except Exception as msg:
             self.logger.log(msg)
             return
-        t = time()
         self.func()
         self.logger.set_always_flush(False)
-        self.logger.log("[CHIPSEC] (Lock Check) time elapsed {:.3f}".format(time() - t))
 
 
 commands = {'check': LOCKCHECKCommand}

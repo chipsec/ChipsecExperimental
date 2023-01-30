@@ -35,7 +35,6 @@ Examples:
 >>> chipsec_util cpu topology
 """
 
-from time import time
 from argparse import ArgumentParser
 
 from chipsec.hal.cpu import CPU
@@ -164,7 +163,6 @@ class CPUCommand(BaseCommand):
                 self.cs.cpu.dump_page_tables(cr3, pt_fname)
 
     def run(self):
-        t = time()
         try:
             self._cpu = CPU(self.cs)
         except CPURuntimeError as msg:
@@ -172,7 +170,6 @@ class CPUCommand(BaseCommand):
             return
 
         self.func()
-        self.logger.log("[CHIPSEC] (cpu) time elapsed {:.3f}".format(time() - t))
 
 
 commands = {'cpu': CPUCommand}

@@ -43,7 +43,6 @@ Examples:
 """
 
 import os
-import time
 
 from chipsec.command import BaseCommand
 from chipsec.defines import ALIGNED_4KB, BOUNDARY_4KB, bytestostring
@@ -209,9 +208,7 @@ class MemCommand(BaseCommand):
             self.cs.mem.write_physical_mem_dword(self.phys_address, self.write_data)
 
     def run(self):
-        t = time.time()
         self.func()
-        self.logger.log("[CHIPSEC] (mem) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'mem': MemCommand}

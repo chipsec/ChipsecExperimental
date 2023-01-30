@@ -49,7 +49,6 @@ Examples:
 >>> chipsec_util ldt
 """
 
-from time import time
 from argparse import ArgumentParser
 
 from chipsec.command import BaseCommand
@@ -74,7 +73,6 @@ class IDTCommand(BaseCommand):
         return True
 
     def run(self):
-        t = time()
         num_threads = self.cs.msr.get_cpu_thread_count()
         if self._thread and self._thread < num_threads:
             self.logger.log("[CHIPSEC] Dumping IDT of CPU thread {:d}".format(self._thread))
@@ -82,7 +80,6 @@ class IDTCommand(BaseCommand):
         else:
             self.logger.log("[CHIPSEC] Dumping IDT of {:d} CPU threads".format(num_threads))
             self.cs.msr.IDT_all(4)
-        self.logger.log("[CHIPSEC] (idt) time elapsed {:.3f}".format(time() - t))
 
 
 class GDTCommand(BaseCommand):
@@ -102,7 +99,6 @@ class GDTCommand(BaseCommand):
         return True
 
     def run(self):
-        t = time()
         num_threads = self.cs.msr.get_cpu_thread_count()
         if self._thread and self._thread < num_threads:
             self.logger.log("[CHIPSEC] Dumping IDT of CPU thread {:d}".format(self._thread))
@@ -110,7 +106,6 @@ class GDTCommand(BaseCommand):
         else:
             self.logger.log("[CHIPSEC] Dumping IDT of {:d} CPU threads".format(num_threads))
             self.cs.msr.GDT_all(4)
-        self.logger.log("[CHIPSEC] (gdt) time elapsed {:.3f}".format(time() - t))
 
 
 class LDTCommand(BaseCommand):

@@ -29,7 +29,6 @@ Examples:
 >>> chipsec_util cmos writeh 0x0 0xCC
 """
 
-from time import time
 from argparse import ArgumentParser
 
 from chipsec.command import BaseCommand
@@ -91,7 +90,6 @@ class CMOSCommand(BaseCommand):
         self._cmos.write_cmos_high(self.offset, self.value)
 
     def run(self):
-        t = time()
         try:
             self._cmos = CMOS(self.cs)
         except CmosRuntimeError as msg:
@@ -99,7 +97,6 @@ class CMOSCommand(BaseCommand):
             return
 
         self.func()
-        self.logger.log("[CHIPSEC] (cmos) time elapsed {:.3f}".format(time() - t))
 
 
 commands = {'cmos': CMOSCommand}

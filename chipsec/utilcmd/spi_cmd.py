@@ -44,7 +44,6 @@ Examples:
 >>> chipsec_util spi jedec decode
 """
 
-import time
 import os
 from chipsec.command import BaseCommand
 from chipsec.hal.spi import SPI, BIOS
@@ -178,10 +177,7 @@ class SPICommand(BaseCommand):
             return
 
         self._msg = "it may take a few minutes (use DEBUG or VERBOSE logger options to see progress)"
-        t = time.time()
         self.func()
-
-        self.logger.log("[CHIPSEC] (spi) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'spi': SPICommand}

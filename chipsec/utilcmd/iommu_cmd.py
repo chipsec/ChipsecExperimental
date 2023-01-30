@@ -41,7 +41,6 @@ from chipsec.command import BaseCommand
 from chipsec.hal import acpi, iommu
 from argparse import ArgumentParser
 from chipsec.exceptions import IOMMUError, AcpiRuntimeError
-import time
 
 
 # I/O Memory Management Unit (IOMMU), e.g. Intel VT-d
@@ -138,9 +137,7 @@ class IOMMUCommand(BaseCommand):
         self.iommu_engine('pt')
 
     def run(self):
-        t = time.time()
         self.func()
-        self.logger.log("[CHIPSEC] (iommu) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'iommu': IOMMUCommand}

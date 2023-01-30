@@ -33,7 +33,6 @@ Examples:
 """
 
 from os.path import exists as path_exists
-from time import time
 from argparse import ArgumentParser
 
 from chipsec.hal.acpi import ACPI
@@ -80,14 +79,12 @@ class ACPICommand(BaseCommand):
         return
 
     def run(self):
-        t = time()
         try:
             self._acpi = ACPI(self.cs)
         except AcpiRuntimeError as msg:
             print(msg)
             return
         self.func()
-        self.logger.log("[CHIPSEC] (acpi) time elapsed {:.3f}".format(time() - t))
 
 
 commands = {'acpi': ACPICommand}

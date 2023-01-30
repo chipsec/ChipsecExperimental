@@ -32,7 +32,6 @@ Examples:
 >>> chipsec_util vmm virtio 0:6.0
 """
 
-import time
 import re
 
 from chipsec.command import BaseCommand
@@ -133,8 +132,6 @@ class VMMCommand(BaseCommand):
             return
 
     def run(self):
-        t = time.time()
-
         try:
             self.vmm = VMM(self.cs)
         except VMMRuntimeError as msg:
@@ -144,8 +141,6 @@ class VMMCommand(BaseCommand):
         self.vmm.init()
 
         self.func()
-
-        self.logger.log("[CHIPSEC] (vmm) time elapsed {:.3f}".format((time.time() - t)))
 
 
 commands = {'vmm': VMMCommand}

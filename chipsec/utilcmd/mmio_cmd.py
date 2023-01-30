@@ -41,7 +41,6 @@ Examples:
 from chipsec.command import BaseCommand
 from chipsec.hal import mmio
 from argparse import ArgumentParser
-from time import time
 
 
 # ###################################################################
@@ -169,9 +168,7 @@ class MMIOCommand(BaseCommand):
 
     def run(self):
         self._mmio = mmio.MMIO(self.cs)
-        t = time()
         self.func()
-        self.logger.log("[CHIPSEC] (mmio) time elapsed {:.3f}".format(time() - t))
 
 
 commands = {'mmio': MMIOCommand}

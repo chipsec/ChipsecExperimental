@@ -28,6 +28,7 @@ import os
 import sys
 import importlib
 import argparse
+from time import time
 
 from typing import Sequence, Optional, Dict, Any
 from chipsec.helper import oshelper
@@ -199,7 +200,10 @@ class ChipsecUtil:
             print_banner_properties(self._cs, os_version())
 
         self.logger.log("[CHIPSEC] Executing command '{}' with args {}\n".format(self._cmd, self.argv[2:]))
+        t = time()
         comm.run()
+        final_t = time() - t
+        logger().log(f'[CHIPSEC] Time elapsed {final_t:.3f}')
         if comm.requires_driver() and not self._no_driver:
             self._cs.destroy(True)
         return comm.ExitCode

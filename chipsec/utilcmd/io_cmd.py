@@ -34,7 +34,6 @@ Examples:
 >>> chipsec_util io write 0x430 1 0x0
 """
 
-import time
 from argparse import ArgumentParser
 
 from chipsec.hal import iobar
@@ -106,11 +105,7 @@ class PortIOCommand(BaseCommand):
             self.logger.log(msg)
             return
 
-        t = time.time()
-
         self.func()
-
-        self.logger.log("[CHIPSEC] (io) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'io': PortIOCommand}

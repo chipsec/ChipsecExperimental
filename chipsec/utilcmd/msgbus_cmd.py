@@ -38,8 +38,6 @@ Examples:
 >>> chipsec_util msgbus message  0x3 0x2E 0x11 0x0
 """
 
-import time
-
 from chipsec.command import BaseCommand
 from argparse import ArgumentParser
 
@@ -106,15 +104,12 @@ class MsgBusCommand(BaseCommand):
         return self._msgbus.msgbus_send_message(self.port, self.reg, self.opcode, self.val)
 
     def run(self):
-        t = time.time()
         self._msgbus = self.cs.msgbus
 
         res = self.func()
 
         if res is not None:
             self.logger.log("[CHIPSEC] Result: 0x{:08X}".format(res))
-
-        self.logger.log("[CHIPSEC] (msgbus) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'msgbus': MsgBusCommand}

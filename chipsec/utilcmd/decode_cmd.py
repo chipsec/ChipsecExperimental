@@ -44,7 +44,6 @@ Examples:
 """
 
 import os
-from time import time
 from argparse import ArgumentParser
 
 from chipsec.file import read_file, write_file
@@ -117,12 +116,10 @@ class DecodeCommand(BaseCommand):
         self.logger.set_log_file(_orig_logname)
 
     def run(self):
-        t = time()
         if self._rom.lower() == 'types':
             self.decode_types()
         else:
             self.decode_rom()
-        self.logger.log("[CHIPSEC] (decode) time elapsed {:.3f}".format(time() - t))
 
 
 commands = {"decode": DecodeCommand}

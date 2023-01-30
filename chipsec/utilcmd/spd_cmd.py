@@ -34,8 +34,6 @@ Examples:
 >>> chipsec_util spd write 0xA0 0x0 0xAA
 """
 
-import time
-
 from chipsec.command import BaseCommand
 from chipsec.hal import smbus, spd
 from argparse import ArgumentParser
@@ -119,16 +117,12 @@ class SPDCommand(BaseCommand):
             self.logger.log_error(msg)
             return
 
-        t = time.time()
-
         if not _smbus.is_SMBus_supported():
             self.logger.log("[CHIPSEC] SMBus controller is not supported")
             return
 
         self.dev_addr = spd.SPD_SMBUS_ADDRESS
         self.func()
-
-        self.logger.log("[CHIPSEC] (spd) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'spd': SPDCommand}

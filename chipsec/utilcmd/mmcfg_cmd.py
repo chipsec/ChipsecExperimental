@@ -32,8 +32,6 @@ Examples:
 >>> chipsec_util mmcfg 0 0 0 0x98 dword 0x004E0040
 """
 
-import time
-
 from chipsec.command import BaseCommand
 from chipsec.hal import mmio
 from argparse import ArgumentParser
@@ -56,7 +54,6 @@ class MMCfgCommand(BaseCommand):
         return True
 
     def run(self):
-        t = time.time()
         _mmio = mmio.MMIO(self.cs)
 
         try:
@@ -80,7 +77,6 @@ class MMCfgCommand(BaseCommand):
             self.logger.log("[CHIPSEC] Reading MMCFG register ({:02d}:{:02d}.{:d} + 0x{:02X}): 0x{:X}".format(self.bus, self.device, self.function, self.offset, data))
 
         self.logger.log('')
-        self.logger.log("[CHIPSEC] (mmcfg) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'mmcfg': MMCfgCommand}

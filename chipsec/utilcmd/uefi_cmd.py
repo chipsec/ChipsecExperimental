@@ -53,7 +53,6 @@ Examples:
 """
 
 import os
-import time
 import uuid
 from argparse import ArgumentParser
 
@@ -431,10 +430,8 @@ class UEFICommand(BaseCommand):
         self.logger.log("[CHIPSEC]  UEFI file was successfully assembled! Binary file size: {:d}, compressed UEFI file size: {:d}".format(len(raw_image), len(uefi_image)))
 
     def run(self):
-        t = time.time()
         self._uefi = UEFI(self.cs)
         self.func()
-        self.logger.log("[CHIPSEC] (uefi) time elapsed {:.3f}".format(time.time() - t))
         return
 
 

@@ -28,7 +28,6 @@ Examples:
 >>> chipsec_util config show REGISTERS BC
 """
 
-from time import time
 from argparse import ArgumentParser
 
 from chipsec.command import BaseCommand
@@ -148,9 +147,7 @@ class CONFIGCommand(BaseCommand):
         return ret
 
     def run(self):
-        t = time()
         self.func()
-        self.logger.log("[CHIPSEC] (config) time elapsed {:.3f}".format(time() - t))
         return
 
 

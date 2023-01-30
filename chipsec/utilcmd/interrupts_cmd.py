@@ -41,7 +41,6 @@ Examples:
 >>> chipsec_util nmi
 """
 
-import time
 import os
 
 from chipsec.command import BaseCommand
@@ -153,11 +152,7 @@ class SMICommand(BaseCommand):
             self.logger.log(msg)
             return
 
-        t = time.time()
-
         self.func()
-
-        self.logger.log("[CHIPSEC] (smi) time elapsed {:.3f}".format(time.time() - t))
 
 
 class NMICommand(BaseCommand):
@@ -179,10 +174,8 @@ class NMICommand(BaseCommand):
             self.logger.log(msg)
             return
 
-        t = time.time()
         self.logger.log("[CHIPSEC] Sending NMI#...")
         interrupts.send_NMI()
-        self.logger.log("[CHIPSEC] (nmi) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'smi': SMICommand, 'nmi': NMICommand}

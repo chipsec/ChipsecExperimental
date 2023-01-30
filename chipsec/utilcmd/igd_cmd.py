@@ -37,7 +37,6 @@ from chipsec.logger import print_buffer
 from argparse import ArgumentParser
 from chipsec.file import read_file, write_file
 from chipsec.hal import igd
-from time import time
 import os
 
 
@@ -101,11 +100,8 @@ class IgdCommand(BaseCommand):
             self.logger.log('[CHIPSEC] Looks like internal graphics device is not enabled')
             return
 
-        t = time()
-
         self.func()
 
-        self.logger.log("[CHIPSEC] (mem) time elapsed {:.3f}".format(time() - t))
 
 
 commands = {'igd': IgdCommand}

@@ -28,8 +28,6 @@ Examples:
 >>> chipsec_util ucode decode ucode.pdb
 """
 
-import time
-
 from chipsec.command import BaseCommand
 from chipsec.file import read_file
 from chipsec.hal.ucode import dump_ucode_update_header
@@ -87,9 +85,7 @@ class UCodeCommand(BaseCommand):
         dump_ucode_update_header(pdb_ucode_buffer)
 
     def run(self):
-        t = time.time()
         self.func()
-        self.logger.log("[CHIPSEC] (ucode) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'ucode': UCodeCommand}

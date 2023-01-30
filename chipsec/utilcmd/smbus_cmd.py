@@ -27,8 +27,6 @@ Examples:
 >>> chipsec_util smbus read 0xA0 0x0 0x100
 """
 
-import time
-
 from chipsec.command import BaseCommand
 from chipsec.logger import print_buffer
 from chipsec.hal.smbus import SMBus
@@ -75,13 +73,11 @@ class SMBusCommand(BaseCommand):
             self.logger.log_error(msg)
             return
 
-        t = time.time()
         if not self._smbus.is_SMBus_supported():
             self.logger.log("[CHIPSEC] SMBus controller is not supported")
             return
         self._smbus.display_SMBus_info()
         self.func()
-        self.logger.log("[CHIPSEC] (smbus) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'smbus': SMBusCommand}
