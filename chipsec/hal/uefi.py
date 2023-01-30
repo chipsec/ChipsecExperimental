@@ -26,7 +26,7 @@ import struct
 from chipsec.defines import stringtobytes
 from chipsec.file import read_file, write_file
 from chipsec.hal.hal_base import HALBase
-from chipsec.logger import print_buffer_bytes
+from chipsec.lib.display_format import print_buffer_bytes
 from chipsec.lib.uefi_common import FWType, fw_types, EFI_REVISIONS, EFI_VENDOR_TABLE_FORMAT, EFI_TABLES
 from chipsec.lib.uefi_common import EFI_VENDOR_TABLE, EFI_VENDOR_TABLE_SIZE, EFI_CONFIGURATION_TABLE
 from chipsec.lib.uefi_common import EFI_TABLE_HEADER_SIZE, EFI_TABLE_HEADER, EFI_TABLE_HEADER_FMT

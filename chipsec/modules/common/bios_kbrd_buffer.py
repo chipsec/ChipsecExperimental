@@ -34,7 +34,7 @@ Examples:
 """
 
 from chipsec.module_common import BaseModule, ModuleResult, MTAG_BIOS
-from chipsec.logger import print_buffer
+from chipsec.lib.display_format import print_buffer
 
 TAGS = [MTAG_BIOS]
 

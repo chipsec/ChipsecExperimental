@@ -49,7 +49,7 @@ import chipsec_util
 from chipsec.command import BaseCommand
 from chipsec.hal import virtmem
 from chipsec.defines import bytestostring
-from chipsec.logger import print_buffer
+from chipsec.lib.display_format import print_buffer
 from chipsec.file import write_file, read_file
 from argparse import ArgumentParser
 

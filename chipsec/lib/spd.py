@@ -36,7 +36,8 @@ http://en.wikipedia.org/wiki/Serial_presence_detect
 import struct
 from collections import namedtuple
 
-from chipsec.logger import logger, print_buffer
+from chipsec.logger import logger
+from chipsec.lib.display_format import print_buffer
 
 SPD_SMBUS_ADDRESS = 0xA0  # A2, A4, A6, A8, AA, AC, AE
 SPD_SMBUS_ADDRESS_DIMM0 = SPD_SMBUS_ADDRESS

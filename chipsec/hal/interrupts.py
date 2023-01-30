@@ -33,7 +33,8 @@ import struct
 import uuid
 
 from chipsec.hal import hal_base
-from chipsec.logger import logger, print_buffer_bytes
+from chipsec.logger import logger
+from chipsec.lib.display_format import print_buffer_bytes
 from chipsec.hal.acpi import ACPI
 from chipsec.lib.acpi_tables import UEFI_TABLE
 from chipsec.defines import bytestostring

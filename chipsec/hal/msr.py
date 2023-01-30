@@ -35,7 +35,7 @@ usage:
 """
 
 from chipsec.hal.hal_base import HALBase
-from chipsec.logger import print_buffer
+from chipsec.lib.display_format import print_buffer
 
 
 DESCRIPTOR_TABLE_CODE_IDTR = 0

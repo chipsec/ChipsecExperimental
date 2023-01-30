@@ -32,7 +32,7 @@ from argparse import ArgumentParser
 from time import time
 from chipsec.command import BaseCommand
 from chipsec.hal.smbios import SMBIOS
-from chipsec.logger import print_buffer
+from chipsec.lib.display_format import print_buffer
 from chipsec.defines import bytestostring
 
 

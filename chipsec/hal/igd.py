@@ -32,7 +32,7 @@ usage:
 """
 
 from chipsec.hal import hal_base
-from chipsec.logger import print_buffer
+from chipsec.lib.display_format import print_buffer
 from chipsec.defines import bytestostring
 
 

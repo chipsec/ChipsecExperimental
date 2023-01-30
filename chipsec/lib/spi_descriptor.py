@@ -30,7 +30,8 @@ usage:
 import struct
 import time
 
-from chipsec.logger import logger, print_buffer
+from chipsec.logger import logger
+from chipsec.lib.display_format import print_buffer
 from chipsec.defines import bytestostring
 from chipsec.hal import spi
 from binascii import hexlify

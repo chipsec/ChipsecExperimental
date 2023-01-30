@@ -47,7 +47,7 @@ import time
 
 from chipsec.defines import ALIGNED_4KB, BIT0, BIT1, BIT2, BIT5
 from chipsec.file import write_file, read_file
-from chipsec.logger import print_buffer, print_buffer_bytes
+from chipsec.lib.display_format import print_buffer, print_buffer_bytes
 from chipsec.hal import hal_base, mmio
 from chipsec.helper import oshelper
 from chipsec.lib.spi_jedec_ids import JEDEC_ID

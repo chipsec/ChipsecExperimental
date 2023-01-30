@@ -82,7 +82,7 @@ import os
 
 from chipsec.module_common import BaseModule, ModuleResult
 from chipsec.file import write_file
-from chipsec.logger import print_buffer_bytes
+from chipsec.lib.display_format import print_buffer_bytes
 from chipsec.hal.interrupts import Interrupts
 from chipsec.exceptions import BadSMIDetected
 

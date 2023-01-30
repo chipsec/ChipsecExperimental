@@ -30,7 +30,7 @@ Examples:
 import time
 
 from chipsec.command import BaseCommand
-from chipsec.logger import print_buffer
+from chipsec.lib.display_format import print_buffer
 from chipsec.hal.smbus import SMBus
 from argparse import ArgumentParser
 

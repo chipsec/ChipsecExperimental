@@ -29,7 +29,8 @@ VMM specific functionality
 
 import struct
 
-from chipsec.logger import logger, pretty_print_hex_buffer
+from chipsec.logger import logger
+from chipsec.lib.display_format import pretty_print_hex_buffer
 import chipsec.lib.pcidb
 
 

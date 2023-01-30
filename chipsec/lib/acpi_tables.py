@@ -32,7 +32,8 @@ from collections import namedtuple
 from uuid import UUID
 from typing import Optional, Tuple
 
-from chipsec.logger import logger, dump_buffer_bytes
+from chipsec.logger import logger
+from chipsec.lib.display_format import dump_buffer_bytes
 from chipsec.lib.uefi_common import EFI_GUID_FMT, EFI_GUID_STR
 
 

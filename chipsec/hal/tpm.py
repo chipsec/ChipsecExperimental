@@ -28,7 +28,7 @@ https://trustedcomputinggroup.org
 import struct
 from collections import namedtuple
 
-from chipsec.logger import print_buffer_bytes
+from chipsec.lib.display_format import print_buffer_bytes
 from chipsec.hal import hal_base
 import chipsec.lib.tpm12_commands
 

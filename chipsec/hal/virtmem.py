@@ -31,7 +31,8 @@ usage:
 
 import struct
 
-from chipsec.logger import logger, print_buffer
+from chipsec.logger import logger
+from chipsec.lib.display_format import print_buffer
 from chipsec.hal import hal_base
 
 

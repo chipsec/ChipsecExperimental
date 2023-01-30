@@ -33,7 +33,7 @@ Examples:
 """
 
 from chipsec.command import BaseCommand
-from chipsec.logger import print_buffer
+from chipsec.lib.display_format import print_buffer
 from argparse import ArgumentParser
 from chipsec.file import read_file, write_file
 from chipsec.hal import igd

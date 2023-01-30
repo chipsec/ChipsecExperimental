@@ -31,7 +31,7 @@ usage:
 import struct
 
 from chipsec.hal.hal_base import HALBase
-from chipsec.logger import print_buffer_bytes
+from chipsec.lib.display_format import print_buffer_bytes
 
 
 class Memory(HALBase):

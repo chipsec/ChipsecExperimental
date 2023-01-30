@@ -30,7 +30,8 @@ from collections import defaultdict
 from collections import namedtuple
 from chipsec.lib import acpi_tables
 
-from chipsec.logger import logger, print_buffer_bytes
+from chipsec.logger import logger
+from chipsec.lib.display_format import print_buffer_bytes
 from chipsec.file import read_file
 from chipsec.defines import bytestostring
 

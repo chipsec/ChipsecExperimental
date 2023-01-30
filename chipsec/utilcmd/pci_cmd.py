@@ -47,7 +47,7 @@ Examples:
 import time
 
 from chipsec.command import BaseCommand
-from chipsec.logger import pretty_print_hex_buffer
+from chipsec.lib.display_format import pretty_print_hex_buffer
 from argparse import ArgumentParser
 from chipsec_util import get_option_width, is_option_valid_width, CMD_OPTS_WIDTH
 from chipsec.lib.pci import print_pci_devices, print_pci_XROMs
