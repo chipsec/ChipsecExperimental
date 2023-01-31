@@ -26,6 +26,7 @@ CPU related functionality
 
 from chipsec.hal import acpi, hal_base, paging
 from chipsec.logger import logger
+from chipsec.lib.display_format import print_buffer_bytes
 
 DESCRIPTOR_TABLE_CODE_IDTR = 0
 DESCRIPTOR_TABLE_CODE_GDTR = 1
@@ -111,13 +112,15 @@ class CPU(hal_base.HALBase):
 
     # determine number of logical processors in the core
     def get_number_threads_from_APIC_table(self):
-        _acpi = acpi.ACPI(self.cs)
         dACPIID = {}
-        for apic in _acpi.get_parse_ACPI_table(acpi.ACPI_TABLE_SIG_APIC):
-            table_header, APIC_object, table_header_blob, table_blob = apic
-            for structure in APIC_object.apic_structs:
+        _acpi = acpi.ACPI(self.cs)
+        apic_tables = _acpi.get_ACPI_table(acpi.ACPI_TABLE_SIG_APIC, False)
+        for (_, table_blob) in apic_tables:
+            apic = (acpi.ACPI_TABLES[acpi.ACPI_TABLE_SIG_APIC])()
+            apic.parse(table_blob)
+            for structure in apic.apic_structs:
                 if 0x00 == structure.Type:
-                    if structure.ACICID not in dACPIID:
+                    if structure.APICID not in dACPIID:
                         if 1 == structure.Flags:
                             dACPIID[structure.APICID] = structure.ACPIProcID
         return len(dACPIID)
@@ -204,13 +207,13 @@ class CPU(hal_base.HALBase):
         try:
             if (self.check_SMRR_supported()):
                 (smram_base, smram_limit, smram_size) = self.get_SMRR_SMRAM()
-        except:
+        except Exception:
             pass
 
         if smram_base is None:
             try:
                 (smram_base, smram_limit, smram_size) = self.get_TSEG()
-            except:
+            except Exception:
                 pass
         return (smram_base, smram_limit, smram_size)
 
@@ -274,31 +277,29 @@ class CPU(hal_base.HALBase):
             self.logger.log("[cpu{:d}] LDTR Limit = 0x{:04X}, Base = 0x{:016X}, Physical Address = 0x{:016X}".format(cpu_thread_id, limit, base, pa))
         return (limit, base, pa)
 
-
 ##########################################################################################################
 #
 # Dump CPU Descriptor Tables (IDT, GDT, LDT..)
 #
 ##########################################################################################################
 
-
     def dump_Descriptor_Table(self, cpu_thread_id, code, num_entries=None):
         (limit, base, pa) = self.helper.get_descriptor_table(cpu_thread_id, code)
-        dt = self.helper.read_physical_mem(pa, limit + 1)
+        dt = self.cs.mem.read_physical_mem(pa, limit + 1)
         total_num = len(dt) // 16
-        if (total_num < num_entries) or (num_entries is None):
+        if num_entries is None or total_num < num_entries:
             num_entries = total_num
         self.logger.log('[cpu{:d}] Physical Address: 0x{:016X}'.format(cpu_thread_id, pa))
         self.logger.log('[cpu{:d}] # of entries    : {:d}'.format(cpu_thread_id, total_num))
         self.logger.log('[cpu{:d}] Contents ({:d} entries):'.format(cpu_thread_id, num_entries))
-        print_buffer(dt)
+        print_buffer_bytes(dt)
         self.logger.log('--------------------------------------')
         self.logger.log('#    segment:offset         attributes')
         self.logger.log('--------------------------------------')
         for i in range(0, num_entries):
-            offset = (ord(dt[i * 16 + 11]) << 56) | (ord(dt[i * 16 + 10]) << 48) | (ord(dt[i * 16 + 9]) << 40) | (ord(dt[i * 16 + 8]) << 32) | (ord(dt[i * 16 + 7]) << 24) | (ord(dt[i * 16 + 6]) << 16) | (ord(dt[i * 16 + 1]) << 8) | ord(dt[i * 16 + 0])
-            segsel = (ord(dt[i * 16 + 3]) << 8) | ord(dt[i * 16 + 2])
-            attr = (ord(dt[i * 16 + 5]) << 8) | ord(dt[i * 16 + 4])
+            offset = (dt[i * 16 + 11] << 56) | (dt[i * 16 + 10] << 48) | (dt[i * 16 + 9] << 40) | (dt[i * 16 + 8] << 32) | (dt[i * 16 + 7] << 24) | (dt[i * 16 + 6] << 16) | (dt[i * 16 + 1] << 8) | dt[i * 16 + 0]
+            segsel = (dt[i * 16 + 3] << 8) | dt[i * 16 + 2]
+            attr = (dt[i * 16 + 5] << 8) | dt[i * 16 + 4]
             self.logger.log('{:03d}  {:04X}:{:016X}  0x{:04X}'.format(i, segsel, offset, attr))
 
         return (pa, dt)
@@ -314,9 +315,9 @@ class CPU(hal_base.HALBase):
         return self.dump_Descriptor_Table(cpu_thread_id, DESCRIPTOR_TABLE_CODE_GDTR, num_entries)
 
     def IDT_all(self, num_entries=None):
-        for tid in range(self.get_cpu_thread_count()):
+        for tid in range(self.cs.msr.get_cpu_thread_count()):
             self.IDT(tid, num_entries)
 
     def GDT_all(self, num_entries=None):
-        for tid in range(self.get_cpu_thread_count()):
+        for tid in range(self.cs.msr.get_cpu_thread_count()):
             self.GDT(tid, num_entries)
