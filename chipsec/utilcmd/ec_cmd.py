@@ -74,7 +74,7 @@ class ECCommand(BaseCommand):
         parser_index = subparsers.add_parser('index', parents=[parser_offset])
         parser_index.set_defaults(func=self.index)
 
-        parser.parse_args(self.argv[2:], namespace=self)
+        parser.parse_args(self.argv, namespace=self)
         return hasattr(self, 'func')
 
     def dump(self):

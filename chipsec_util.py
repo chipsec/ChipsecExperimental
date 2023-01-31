@@ -170,9 +170,6 @@ class ChipsecUtil:
 
         self.init_cs()
 
-        # @TODO: change later
-        # all util cmds assume 'chipsec_util.py' as the first arg so adding dummy first arg
-        self.argv = ['dummy'] + [self._cmd] + self._cmd_args
         comm = self.commands[self._cmd](self.argv, cs=self._cs)
 
         if self._load_config:

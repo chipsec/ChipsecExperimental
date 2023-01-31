@@ -65,7 +65,7 @@ class CMOSCommand(BaseCommand):
         parser_writeh = subparsers.add_parser('writeh', parents=[parser_offset, parser_val])
         parser_writeh.set_defaults(func=self.cmos_writeh)
 
-        parser.parse_args(self.argv[2:], namespace=CMOSCommand)
+        parser.parse_args(self.argv, namespace=CMOSCommand)
 
         return True
 

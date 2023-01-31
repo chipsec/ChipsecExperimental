@@ -41,7 +41,7 @@ class TXTCommand(BaseCommand):
         parser_state.set_defaults(func=self.txt_dump)
         parser_state = subparsers.add_parser('state')
         parser_state.set_defaults(func=self.txt_state)
-        parser.parse_args(self.argv[2:], namespace=self)
+        parser.parse_args(self.argv, namespace=self)
         return True
 
     def txt_dump(self):

@@ -50,7 +50,7 @@ class SMBusCommand(BaseCommand):
         parser_write.add_argument('val', type=lambda x: int(x, 16), help='Byte Value (hex)')
         parser_write.set_defaults(func=self.smbus_write)
 
-        parser.parse_args(self.argv[2:], namespace=self)
+        parser.parse_args(self.argv, namespace=self)
         return True
 
     def smbus_read(self):

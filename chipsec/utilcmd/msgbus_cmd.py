@@ -78,7 +78,7 @@ class MsgBusCommand(BaseCommand):
         parser_message.add_argument('val', type=lambda x: int(x, 16), nargs='?', default=None, help='Value (hex)')
         parser_message.set_defaults(func=self.msgbus_message)
 
-        parser.parse_args(self.argv[2:], namespace=self)
+        parser.parse_args(self.argv, namespace=self)
         return True
 
     def msgbus_read(self):
