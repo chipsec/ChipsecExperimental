@@ -62,6 +62,18 @@ class Msr(HALBase):
             self.logger.log("[cpu] # of logical CPUs: {:d}".format(thread_count))
         return thread_count
 
+    def get_threads_from_scope(self, scope):
+        topology = self.cs.cpu.get_cpu_topology()
+        if scope == "packages":
+            packages = topology['packages']
+            threads_to_use = [packages[p][0] for p in packages]
+        elif scope == "cores":
+            cores = topology['cores']
+            threads_to_use = [cores[p][0] for p in cores]
+        else:  # Default to threads
+            threads_to_use = range(self.get_cpu_thread_count())
+        return threads_to_use
+
 ##########################################################################################################
 #
 # Read/Write CPU MSRs

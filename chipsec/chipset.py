@@ -948,15 +948,8 @@ class Chipset:
         reg = self.get_register_def(reg_name)
         rtype = reg['type']
         if RegisterType.MSR == rtype:
-            topology = self.cpu.get_cpu_topology()
-            if 'scope' in reg.keys() and reg['scope'] == "packages":
-                packages = topology['packages']
-                threads_to_use = [packages[p][0] for p in packages]
-            elif 'scope' in reg.keys() and reg['scope'] == "cores":
-                cores = topology['cores']
-                threads_to_use = [cores[p][0] for p in cores]
-            else:  # Default to threads
-                threads_to_use = range(self.helper.get_threads_count())
+            scope = reg.get("scope", None)
+            threads_to_use = self.msr.get_threads_from_scope(scope)
             for t in threads_to_use:
                 values.append(self.read_register(reg_name, t))
         elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO]:
@@ -1025,15 +1018,8 @@ class Chipset:
         bus_data = self.get_register_bus(reg_name)
         ret = False
         if RegisterType.MSR == rtype:
-            topology = self.cpu.get_cpu_topology()
-            if 'scope' in reg.keys() and reg['scope'] == "packages":
-                packages = topology['packages']
-                threads_to_use = [packages[p][0] for p in packages]
-            elif 'scope' in reg.keys() and reg['scope'] == "cores":
-                cores = topology['cores']
-                threads_to_use = [cores[p][0] for p in cores]
-            else:  # Default to threads
-                threads_to_use = range(self.helper.get_threads_count())
+            scope = reg.get("scope", None)
+            threads_to_use = self.msr.get_threads_from_scope(scope)
             if len(reg_values) == len(threads_to_use):
                 value = 0
                 for t in threads_to_use:
@@ -1059,15 +1045,8 @@ class Chipset:
         rtype = reg['type']
         bus_data = self.get_register_bus(reg_name)
         if RegisterType.MSR == rtype:
-            topology = self.cpu.get_cpu_topology()
-            if 'scope' in reg.keys() and reg['scope'] == "packages":
-                packages = topology['packages']
-                threads_to_use = [packages[p][0] for p in packages]
-            elif 'scope' in reg.keys() and reg['scope'] == "cores":
-                cores = topology['cores']
-                threads_to_use = [cores[p][0] for p in cores]
-            else:  # Default to threads
-                threads_to_use = range(self.helper.get_threads_count())
+            scope = reg.get("scope", None)
+            threads_to_use = self.msr.get_threads_from_scope(scope)
             for t in threads_to_use:
                 self.write_register(reg_name, reg_value, t)
         elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO] and bus_data:
@@ -1242,15 +1221,8 @@ class Chipset:
         reg = self.get_register_def(reg_name)
         rtype = reg['type']
         if RegisterType.MSR == rtype:
-            topology = self.cpu.get_cpu_topology()
-            if 'scope' in reg.keys() and reg['scope'] == "packages":
-                packages = topology['packages']
-                threads_to_use = [packages[p][0] for p in packages]
-            elif 'scope' in reg.keys() and reg['scope'] == "cores":
-                cores = topology['cores']
-                threads_to_use = [cores[p][0] for p in cores]
-            else:  # Default to threads
-                threads_to_use = range(self.helper.get_threads_count())
+            scope = reg.get("scope", None)
+            threads_to_use = self.msr.get_threads_from_scope(scope)
             for t in threads_to_use:
                 reg_val = self.read_register(reg_name, t)
                 reg_str += self.print_register(reg_name, reg_val, cpu_thread=t)
