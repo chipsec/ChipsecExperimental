@@ -162,14 +162,5 @@ class CPUCommand(BaseCommand):
                 self.logger.log("[CHIPSEC][cpu{:d}] dumping paging hierarchy to '{}'...".format(tid, pt_fname))
                 self.cs.cpu.dump_page_tables(cr3, pt_fname)
 
-    def run(self):
-        try:
-            self._cpu = CPU(self.cs)
-        except CPURuntimeError as msg:
-            print(msg)
-            return
-
-        self.func()
-
 
 commands = {'cpu': CPUCommand}

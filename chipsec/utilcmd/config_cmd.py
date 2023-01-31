@@ -146,9 +146,5 @@ class CONFIGCommand(BaseCommand):
         ret = "bus: {}".format(regi)
         return ret
 
-    def run(self):
-        self.func()
-        return
-
 
 commands = {'config': CONFIGCommand}

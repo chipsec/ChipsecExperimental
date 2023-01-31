@@ -147,7 +147,7 @@ KEY:
         try:
             self._locks = locks(self.cs)
         except Exception as msg:
-            self.logger.log(msg)
+            self.logger.log_error(msg)
             return
         self.func()
         self.logger.set_always_flush(False)

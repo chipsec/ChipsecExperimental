@@ -69,7 +69,7 @@ class PortIOCommand(BaseCommand):
         return True
 
     def io_list(self):
-        self._iobar.list_IO_BARs()
+        self.cs.iobar.list_IO_BARs()
 
     def io_read(self):
         if 0x1 == self._width:
@@ -97,15 +97,6 @@ class PortIOCommand(BaseCommand):
         self.logger.log(
             "[CHIPSEC] OUT 0x{:04X} <- 0x{:08X} (size = 0x{:02X})".format(self._port, self._value, self._width))
         return
-
-    def run(self):
-        try:
-            self._iobar = iobar.IOBAR(self.cs)
-        except IOBARRuntimeError as msg:
-            self.logger.log(msg)
-            return
-
-        self.func()
 
 
 commands = {'io': PortIOCommand}

@@ -17,20 +17,26 @@
 #
 
 
-import chipsec.logger
+from chipsec.logger import logger
 from chipsec.testcase import ExitCode
+import traceback
 
 
 class BaseCommand:
-
     def __init__(self, argv, cs=None):
         self.argv = argv
-        self.logger = chipsec.logger.logger()
+        self.logger = logger()
         self.cs = cs
         self.ExitCode = ExitCode.OK
 
     def run(self):
-        raise NotImplementedError('sub class should overwrite the run() method')
+        try:
+            self.func()
+        except Exception:
+            self.logger.log_error('An error occured during the execution of the command!')
+            self.logger.log_error('Please run with the debug option for further details')
+            if logger().DEBUG:
+                traceback.print_exc()
 
     def requires_driver(self):
         raise NotImplementedError('sub class should overwrite the requires_driver() method')

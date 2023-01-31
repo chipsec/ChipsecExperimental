@@ -82,7 +82,7 @@ class ACPICommand(BaseCommand):
         try:
             self._acpi = ACPI(self.cs)
         except AcpiRuntimeError as msg:
-            print(msg)
+            self.logger.log_error(msg)
             return
         self.func()
 

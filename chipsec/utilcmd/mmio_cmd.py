@@ -111,17 +111,17 @@ class MMIOCommand(BaseCommand):
         return False
 
     def list_bars(self):
-        self._mmio.list_MMIO_BARs()
+        self.cs.mmio.list_MMIO_BARs()
 
     def dump_bar(self):
         self.logger.log("[CHIPSEC] Dumping {} MMIO space..".format(self.bar_name.upper()))
-        (bar_base, bar_size) = self._mmio.get_MMIO_BAR_base_address(self.bar_name.upper())
+        (bar_base, bar_size) = self.cs.mmio.get_MMIO_BAR_base_address(self.bar_name.upper())
         if self.length is not None:
             bar_size = self.length
         else:
             bar_size -= self.offset
         bar_base += self.offset
-        self._mmio.dump_MMIO(bar_base, bar_size)
+        self.cs.mmio.dump_MMIO(bar_base, bar_size)
 
     def dump_bar_abs(self):
         tmp_base = self.base + self.offset
@@ -130,45 +130,41 @@ class MMIOCommand(BaseCommand):
         else:
             tmp_length = self.length
         self.logger.log("[CHIPSEC] Dumping MMIO space 0x{:08X} to 0x{:08X}".format(tmp_base, tmp_base + tmp_length))
-        self._mmio.dump_MMIO(tmp_base, tmp_length)
+        self.cs.mmio.dump_MMIO(tmp_base, tmp_length)
 
     def read_bar(self):
         bar = self.bar_name.upper()
-        reg = self._mmio.read_MMIO_BAR_reg(bar, self.offset, self.width, self.bus)
+        reg = self.cs.mmio.read_MMIO_BAR_reg(bar, self.offset, self.width, self.bus)
         self.logger.log("[CHIPSEC] Read {} + 0x{:X}: 0x{:08X}".format(bar, self.offset, reg))
 
     def read_abs(self):
         if self.width == 1:
-            reg = self._mmio.read_MMIO_reg_byte(self.base, self.offset)
+            reg = self.cs.mmio.read_MMIO_reg_byte(self.base, self.offset)
         elif self.width == 2:
-            reg = self._mmio.read_MMIO_reg_word(self.base, self.offset)
+            reg = self.cs.mmio.read_MMIO_reg_word(self.base, self.offset)
         elif self.width == 4:
-            reg = self._mmio.read_MMIO_reg_dword(self.base, self.offset)
+            reg = self.cs.mmio.read_MMIO_reg_dword(self.base, self.offset)
         elif self.width == 8:
-            reg = self._mmio.read_MMIO_reg_dword(self.base, self.offset)
-            reg |= self._mmio.read_MMIO_reg_dword(self.base, self.offset + 4) << 32
+            reg = self.cs.mmio.read_MMIO_reg_dword(self.base, self.offset)
+            reg |= self.cs.mmio.read_MMIO_reg_dword(self.base, self.offset + 4) << 32
         self.logger.log("[CHIPSEC] Read 0x{:X} + 0x{:X}: 0x{:08X}".format(self.base, self.offset, reg))
 
     def write_bar(self):
         bar = self.bar_name.upper()
         self.logger.log("[CHIPSEC] Write {} + 0x{:X}: 0x{:08X}".format(bar, self.offset, self.value))
-        self._mmio.write_MMIO_BAR_reg(bar, self.offset, self.value, self.width, self.bus)
+        self.cs.mmio.write_MMIO_BAR_reg(bar, self.offset, self.value, self.width, self.bus)
 
     def write_abs(self):
         self.logger.log("[CHIPSEC] Write 0x{:X} + 0x{:X}: 0x{:08X}".format(self.base, self.offset, self.value))
         if self.width == 1:
-            self._mmio.write_MMIO_reg_byte(self.base, self.offset, self.value & 0xFF)
+            self.cs.mmio.write_MMIO_reg_byte(self.base, self.offset, self.value & 0xFF)
         elif self.width == 2:
-            self._mmio.write_MMIO_reg_word(self.base, self.offset, self.value & 0xFFFF)
+            self.cs.mmio.write_MMIO_reg_word(self.base, self.offset, self.value & 0xFFFF)
         elif self.width == 4:
-            self._mmio.write_MMIO_reg_dword(self.base, self.offset, self.value & 0xFFFFFFFF)
+            self.cs.mmio.write_MMIO_reg_dword(self.base, self.offset, self.value & 0xFFFFFFFF)
         elif self.width == 8:
-            self._mmio.write_MMIO_reg_dword(self.base, self.offset, self.value & 0xFFFFFFFF)
-            self._mmio.write_MMIO_reg_dword(self.base, self.offset + 4, (self.value >> 32) & 0xFFFFFFFF)
-
-    def run(self):
-        self._mmio = mmio.MMIO(self.cs)
-        self.func()
+            self.cs.mmio.write_MMIO_reg_dword(self.base, self.offset, self.value & 0xFFFFFFFF)
+            self.cs.mmio.write_MMIO_reg_dword(self.base, self.offset + 4, (self.value >> 32) & 0xFFFFFFFF)
 
 
 commands = {'mmio': MMIOCommand}

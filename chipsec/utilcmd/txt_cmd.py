@@ -163,8 +163,5 @@ class TXTCommand(BaseCommand):
         self._log_register("TXT_PCH_DIDVID")
         self._log_register("INSMM")
 
-    def run(self):
-        self.func()
-
 
 commands = {'txt': TXTCommand}

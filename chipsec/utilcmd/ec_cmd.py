@@ -122,7 +122,7 @@ class ECCommand(BaseCommand):
         try:
             self._ec = EC(self.cs)
         except BaseException as msg:
-            print(msg)
+            self.logger.log_error(msg)
             return
         self.func()
 

@@ -84,8 +84,5 @@ class UCodeCommand(BaseCommand):
         self.logger.log("[CHIPSEC] Decoding Microcode Update header of PDB file: '{}'".format(self.ucode_filename))
         dump_ucode_update_header(pdb_ucode_buffer)
 
-    def run(self):
-        self.func()
-
 
 commands = {'ucode': UCodeCommand}

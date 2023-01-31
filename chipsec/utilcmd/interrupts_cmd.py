@@ -149,7 +149,7 @@ class SMICommand(BaseCommand):
         try:
             self.interrupts = Interrupts(self.cs)
         except RuntimeError as msg:
-            self.logger.log(msg)
+            self.logger.log_error(msg)
             return
 
         self.func()

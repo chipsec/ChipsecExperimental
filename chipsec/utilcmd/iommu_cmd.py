@@ -136,8 +136,5 @@ class IOMMUCommand(BaseCommand):
     def iommu_pt(self):
         self.iommu_engine('pt')
 
-    def run(self):
-        self.func()
-
 
 commands = {'iommu': IOMMUCommand}

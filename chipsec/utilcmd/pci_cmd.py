@@ -190,8 +190,5 @@ class PCICommand(BaseCommand):
                 continue
             self.logger.log('{:02X}:{:02X}.{:X} | {:04X}:{:04X} | {:04X} | {:02X}  | {:02X}'.format(b, d, f, vid, did, cmd_reg, dev_cls, dev_sub_cls))
 
-    def run(self):
-        self.func()
-
 
 commands = {'pci': PCICommand}

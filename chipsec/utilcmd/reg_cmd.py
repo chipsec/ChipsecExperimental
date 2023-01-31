@@ -119,9 +119,5 @@ class RegisterCommand(BaseCommand):
         else:
             self.logger.log_error("[CHIPSEC] Control '{}' isn't defined".format(self.control_name))
 
-    def run(self):
-
-        self.func()
-
 
 commands = {'reg': RegisterCommand}
