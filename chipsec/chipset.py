@@ -28,7 +28,7 @@ import fnmatch
 import xml.etree.ElementTree as ET
 
 from chipsec.helper.oshelper import OsHelper
-from chipsec.hal import cpu, io, iobar, mmio, msgbus, msr, pci, physmem, ucode, igd
+from chipsec.hal import cpu, io, iobar, mmio, msgbus, msr, pci, physmem, ucode, igd, mmcfg
 from chipsec.hal.pci import PCI_HDR_RID_OFF
 from chipsec.exceptions import UnknownChipsetError, DeviceNotFoundError, CSReadError
 from chipsec.exceptions import RegisterTypeNotFoundError
@@ -138,6 +138,7 @@ class Chipset:
         self.mmio = mmio.MMIO(self)
         self.iobar = iobar.IOBAR(self)
         self.igd = igd.IGD(self)
+        self.mmcfg = mmcfg.MMCFG(self)
         #
         # All HAL components which use above 'basic primitive' HAL components
         # should be instantiated in modules/utilcmd with an instance of chipset
@@ -898,7 +899,7 @@ class Chipset:
                 elif 8 == size:
                     reg_value = (self.pci.read_dword(b, d, f, o + 4) << 32) | self.pci.read_dword(b, d, f, o)
             elif RegisterType.MMCFG == rtype:
-                reg_value = self.mmio.read_mmcfg_reg(b, d, f, o, size)
+                reg_value = self.mmcfg.read_mmcfg_reg(b, d, f, o, size)
         elif RegisterType.MMIO == rtype:
             _bus = bus
             if self.mmio.get_MMIO_BAR_base_address(reg['bar'], _bus)[0] != 0:

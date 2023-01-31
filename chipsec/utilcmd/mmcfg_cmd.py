@@ -32,10 +32,7 @@ Examples:
 >>> chipsec_util mmcfg 0 0 0 0x98 dword 0x004E0040
 """
 
-import time
-
 from chipsec.command import BaseCommand
-from chipsec.hal import mmio
 from argparse import ArgumentParser
 
 
@@ -56,9 +53,6 @@ class MMCfgCommand(BaseCommand):
         return True
 
     def run(self):
-        t = time.time()
-        _mmio = mmio.MMIO(self.cs)
-
         try:
             if self.width == 'byte':
                 _width = 1
@@ -73,14 +67,13 @@ class MMCfgCommand(BaseCommand):
             return
 
         if self.value is not None:
-            _mmio.write_mmcfg_reg(self.bus, self.device, self.function, self.offset, _width, self.value)
+            self.cs.mmcfg.write_mmcfg_reg(self.bus, self.device, self.function, self.offset, _width, self.value)
             self.logger.log("[CHIPSEC] Writing MMCFG register ({:02d}:{:02d}.{:d} + 0x{:02X}): 0x{:X}".format(self.bus, self.device, self.function, self.offset, self.value))
         else:
-            data = _mmio.read_mmcfg_reg(self.bus, self.device, self.function, self.offset, _width)
+            data = self.cs.mmcfg.read_mmcfg_reg(self.bus, self.device, self.function, self.offset, _width)
             self.logger.log("[CHIPSEC] Reading MMCFG register ({:02d}:{:02d}.{:d} + 0x{:02X}): 0x{:X}".format(self.bus, self.device, self.function, self.offset, data))
 
         self.logger.log('')
-        self.logger.log("[CHIPSEC] (mmcfg) time elapsed {:.3f}".format(time.time() - t))
 
 
 commands = {'mmcfg': MMCfgCommand}

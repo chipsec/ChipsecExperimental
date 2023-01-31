@@ -32,7 +32,6 @@ Examples:
 """
 
 from chipsec.command import BaseCommand
-from chipsec.hal import mmio
 
 
 # Access to Memory Mapped PCIe Configuration Space (MMCFG)
@@ -42,8 +41,7 @@ class MMCfgBaseCommand(BaseCommand):
         return True
 
     def run(self):
-        _mmio = mmio.MMIO(self.cs)
-        pciexbar, pciexbar_sz = _mmio.get_MMCFG_base_address()
+        pciexbar, pciexbar_sz = self.cs.mmcfg.get_MMCFG_base_address()
         self.logger.log("[CHIPSEC] Memory Mapped Config Base: 0x{:016X}".format(pciexbar))
         self.logger.log("[CHIPSEC] Memory Mapped Config Size: 0x{:016X}".format(pciexbar_sz))
         self.logger.log('')
