@@ -32,7 +32,7 @@ Examples:
 >>> chipsec_util igd dmawrite 0x2217F1000 0x4 deadbeef
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.logger import print_buffer
 from argparse import ArgumentParser
 from chipsec.file import read_file, write_file
@@ -61,8 +61,8 @@ class IgdCommand(BaseCommand):
 
         parser.parse_args(self.argv, namespace=self)
         if hasattr(self, 'func'):
-            return True
-        return False
+            return toLoad.All
+        return toLoad.Nil
 
     def read_dma(self):
         self.logger.log('[CHIPSEC] Reading buffer from memory: PA = 0x{:016X}, len = 0x{:X}..'.format(self.address, self.width))

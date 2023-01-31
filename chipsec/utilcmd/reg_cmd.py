@@ -35,7 +35,7 @@ Examples:
 >>> chipsec_util reg set_control BiosLockEnable 0x1
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from argparse import ArgumentParser
 
 
@@ -76,7 +76,7 @@ class RegisterCommand(BaseCommand):
         parser_setcontrol.set_defaults(func=self.reg_set_control)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def reg_read(self):
         if self.field_name is not None:

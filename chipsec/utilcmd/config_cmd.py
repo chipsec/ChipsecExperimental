@@ -30,7 +30,7 @@ Examples:
 
 from argparse import ArgumentParser
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 
 
 class CONFIGCommand(BaseCommand):
@@ -47,7 +47,7 @@ class CONFIGCommand(BaseCommand):
         parser_show.set_defaults(func=self.show, config="ALL")
 
         parser.parse_args(self.argv, namespace=self)
-        return False
+        return toLoad.All
 
     def show(self):
         if self.config == "ALL":

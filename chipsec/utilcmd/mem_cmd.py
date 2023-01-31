@@ -44,7 +44,7 @@ Examples:
 
 import os
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.defines import ALIGNED_4KB, BOUNDARY_4KB, bytestostring
 from chipsec_util import get_option_width, is_option_valid_width, CMD_OPTS_WIDTH
 from chipsec.file import read_file, write_file, get_main_dir
@@ -99,7 +99,7 @@ class MemCommand(BaseCommand):
         parser_search.set_defaults(func=self.mem_search)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def dump_region_to_path(self, path, pa_start, pa_end):
         if pa_start >= pa_end:

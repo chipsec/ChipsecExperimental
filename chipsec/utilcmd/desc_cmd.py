@@ -51,7 +51,7 @@ Examples:
 
 from argparse import ArgumentParser
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 
 # CPU descriptor tables
 
@@ -70,7 +70,7 @@ class IDTCommand(BaseCommand):
         parser = ArgumentParser(usage=IDTCommand.__doc__)
         parser.add_argument('_thread', metavar='thread', type=lambda x: int(x, 0), nargs='?', default=None, help="thread")
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def run(self):
         num_threads = self.cs.msr.get_cpu_thread_count()
@@ -96,7 +96,7 @@ class GDTCommand(BaseCommand):
         parser = ArgumentParser(usage=GDTCommand.__doc__)
         parser.add_argument('_thread', metavar='thread', type=lambda x: int(x, 0), nargs='?', default=None, help="thread")
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def run(self):
         num_threads = self.cs.msr.get_cpu_thread_count()
@@ -119,7 +119,7 @@ class LDTCommand(BaseCommand):
     """
 
     def requires_driver(self):
-        return True
+        return toLoad.Nil
 
     def run(self):
         self.logger.log_error("[CHIPSEC] ldt not implemented")

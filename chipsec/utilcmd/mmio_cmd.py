@@ -38,8 +38,7 @@ Examples:
 >>> chipsec_util mmio write-abs 0xFE010000 0x74 0x04 0xFFFF0000
 """
 
-from chipsec.command import BaseCommand
-from chipsec.hal import mmio
+from chipsec.command import BaseCommand, toLoad
 from argparse import ArgumentParser
 
 
@@ -107,8 +106,8 @@ class MMIOCommand(BaseCommand):
 
         parser.parse_args(self.argv, namespace=self)
         if hasattr(self, 'func'):
-            return True
-        return False
+            return toLoad.All
+        return toLoad.Nil
 
     def list_bars(self):
         self.cs.mmio.list_MMIO_BARs()

@@ -31,7 +31,7 @@ Examples:
 
 from argparse import ArgumentParser
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal.cmos import CMOS
 from chipsec.exceptions import CmosRuntimeError
 
@@ -67,7 +67,7 @@ class CMOSCommand(BaseCommand):
 
         parser.parse_args(self.argv, namespace=CMOSCommand)
 
-        return True
+        return toLoad.All
 
     def cmos_dump(self):
         self.logger.log("[CHIPSEC] Dumping CMOS memory..")

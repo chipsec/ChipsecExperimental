@@ -31,7 +31,7 @@ Examples:
 >>> chipsec_util mmcfg_base
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal import mmio
 
 
@@ -39,7 +39,7 @@ from chipsec.hal import mmio
 class MMCfgBaseCommand(BaseCommand):
 
     def requires_driver(self):
-        return True
+        return toLoad.All
 
     def run(self):
         _mmio = mmio.MMIO(self.cs)

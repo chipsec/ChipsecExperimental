@@ -32,7 +32,7 @@ Examples:
 >>> chipsec_util mmcfg 0 0 0 0x98 dword 0x004E0040
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal import mmio
 from argparse import ArgumentParser
 
@@ -51,7 +51,7 @@ class MMCfgCommand(BaseCommand):
         parser.set_defaults()
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def run(self):
         _mmio = mmio.MMIO(self.cs)

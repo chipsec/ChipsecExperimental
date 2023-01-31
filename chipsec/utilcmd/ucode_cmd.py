@@ -28,7 +28,7 @@ Examples:
 >>> chipsec_util ucode decode ucode.pdb
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.file import read_file
 from chipsec.hal.ucode import dump_ucode_update_header
 from argparse import ArgumentParser
@@ -57,7 +57,7 @@ class UCodeCommand(BaseCommand):
         parser_decode = subparsers.add_parser('decode')
         parser_decode.add_argument('ucode_filename', type=str, help='ucode file name (.PDB format)')
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def ucode_id(self):
         if self.cpu_thread_id is None:

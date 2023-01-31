@@ -36,9 +36,7 @@ Examples:
 
 from argparse import ArgumentParser
 
-from chipsec.hal import iobar
-from chipsec.command import BaseCommand
-from chipsec.exceptions import IOBARRuntimeError
+from chipsec.command import BaseCommand, toLoad
 
 
 class PortIOCommand(BaseCommand):
@@ -66,7 +64,7 @@ class PortIOCommand(BaseCommand):
 
         parser.parse_args(self.argv, namespace=self)
 
-        return True
+        return toLoad.All
 
     def io_list(self):
         self.cs.iobar.list_IO_BARs()

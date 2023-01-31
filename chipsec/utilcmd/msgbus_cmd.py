@@ -38,7 +38,7 @@ Examples:
 >>> chipsec_util msgbus message  0x3 0x2E 0x11 0x0
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from argparse import ArgumentParser
 
 
@@ -79,7 +79,7 @@ class MsgBusCommand(BaseCommand):
         parser_message.set_defaults(func=self.msgbus_message)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def msgbus_read(self):
         self.logger.log("[CHIPSEC] msgbus read: port 0x{:02X} + 0x{:08X}".format(self.port, self.reg))

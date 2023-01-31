@@ -171,10 +171,11 @@ class ChipsecUtil:
         self.init_cs()
 
         comm = self.commands[self._cmd](self.argv, cs=self._cs)
+        toLoad = comm.required_driver()
 
         if self._load_config:
             try:
-                self._cs.init(self._platform, self._pch, comm.requires_driver() and not self._no_driver,
+                self._cs.init(self._platform, self._pch, toLoad.load_driver() and not self._no_driver,
                               self._driver_exists)
             except UnknownChipsetError as msg:
                 self.logger.log("*******************************************************************\n"

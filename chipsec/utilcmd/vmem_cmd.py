@@ -46,7 +46,7 @@ Examples:
 import os
 import chipsec_util
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal import virtmem
 from chipsec.defines import bytestostring
 from chipsec.logger import print_buffer
@@ -98,7 +98,7 @@ class VMemCommand(BaseCommand):
         parser_getphys.add_argument('virt_address', type=lambda x: int(x, 16), help='Address (hex)')
         parser_getphys.set_defaults(func=self.vmem_getphys)
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def vmem_read(self):
         self.logger.log('[CHIPSEC] Reading buffer from memory: VA = 0x{:016X}, len = 0x{:X}.'.format(self.virt_address, self.size))

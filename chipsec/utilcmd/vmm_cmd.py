@@ -34,7 +34,7 @@ Examples:
 
 import re
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal.vmm import VMM, get_virtio_devices, VirtIO_Device
 from chipsec.hal.pci import print_pci_devices
 from chipsec.exceptions import VMMRuntimeError
@@ -73,7 +73,7 @@ class VMMCommand(BaseCommand):
         parser_virtio.set_defaults(func=self.vmm_virtio)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def vmm_virtio(self):
         if self.bdf is not None:

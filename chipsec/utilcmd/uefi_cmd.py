@@ -56,7 +56,7 @@ import os
 import uuid
 from argparse import ArgumentParser
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal.uefi_common import EFI_STATUS_DICT, parse_efivar_file
 from chipsec.file import write_file, read_file
 from chipsec.hal.spi_uefi import decode_uefi_region, modify_uefi_region, compress_image, CMD_UEFI_FILE_REPLACE
@@ -181,8 +181,8 @@ class UEFICommand(BaseCommand):
 
         # No driver for decode functionality
         if 'decode' in self.argv:
-            return False
-        return True
+            return toLoad.Nil
+        return toLoad.All
 
     def var_read(self):
         self.logger.log("[CHIPSEC] Reading EFI variable Name='{}' GUID={{{}}} to '{}' via Variable API..".format(self.name, self.guid, self.filename))

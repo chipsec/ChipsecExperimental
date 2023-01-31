@@ -24,7 +24,7 @@ usage as a standalone utility:
     >>> chipsec_util platform
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.exceptions import UnknownChipsetError
 
 # ###################################################################
@@ -40,7 +40,7 @@ class PlatformCommand(BaseCommand):
     """
 
     def requires_driver(self):
-        return True
+        return toLoad.All
 
     def run(self):
         try:

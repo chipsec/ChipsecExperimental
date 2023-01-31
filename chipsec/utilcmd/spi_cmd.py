@@ -45,7 +45,7 @@ Examples:
 """
 
 import os
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal.spi import SPI, BIOS
 from chipsec.exceptions import SpiRuntimeError
 from argparse import ArgumentParser
@@ -90,7 +90,7 @@ class SPICommand(BaseCommand):
         parser_jedec.set_defaults(func=self.spi_jedec)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def spi_info(self):
         self.logger.log("[CHIPSEC] SPI flash memory information\n")

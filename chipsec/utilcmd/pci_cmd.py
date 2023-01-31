@@ -44,7 +44,7 @@ Examples:
 >>> chipsec_util pci cmd 1
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.logger import pretty_print_hex_buffer
 from argparse import ArgumentParser
 from chipsec_util import get_option_width, is_option_valid_width, CMD_OPTS_WIDTH
@@ -99,7 +99,7 @@ class PCICommand(BaseCommand):
         parser_cmd.set_defaults(func=self.pci_cmd)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def pci_enumerate(self):
         self.logger.log("[CHIPSEC] Enumerating available PCIe devices...")

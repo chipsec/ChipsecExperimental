@@ -37,7 +37,7 @@ Examples:
 >>> chipsec_util iommu pt
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal import acpi, iommu
 from argparse import ArgumentParser
 from chipsec.exceptions import IOMMUError, AcpiRuntimeError
@@ -74,7 +74,7 @@ class IOMMUCommand(BaseCommand):
         parser_pt.set_defaults(func=self.iommu_pt)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def iommu_list(self):
         self.logger.log("[CHIPSEC] Enumerating supported IOMMU engines..")

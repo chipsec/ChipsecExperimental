@@ -37,9 +37,7 @@ Examples:
 
 from argparse import ArgumentParser
 
-from chipsec.hal.cpu import CPU
-from chipsec.exceptions import CPURuntimeError
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 
 # ###################################################################
 #
@@ -72,7 +70,7 @@ class CPUCommand(BaseCommand):
 
         parser.parse_args(self.argv, namespace=CPUCommand)
 
-        return True
+        return toLoad.All
 
     def cpu_info(self):
         self.logger.log("[CHIPSEC] CPU information:")

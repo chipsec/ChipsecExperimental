@@ -43,7 +43,7 @@ Examples:
 
 import os
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal.interrupts import Interrupts
 from chipsec.hal.uefi_common import EFI_ERROR_STR
 from argparse import ArgumentParser
@@ -99,7 +99,7 @@ class SMICommand(BaseCommand):
         parser_smmc.set_defaults(func=self.smi_smmc)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def smi_count(self):
         self.logger.log("[CHIPSEC] SMI count:")
@@ -151,7 +151,6 @@ class SMICommand(BaseCommand):
         except RuntimeError as msg:
             self.logger.log_error(msg)
             return
-
         self.func()
 
 
@@ -165,7 +164,7 @@ class NMICommand(BaseCommand):
     """
 
     def requires_driver(self):
-        return True
+        return toLoad.All
 
     def run(self):
         try:

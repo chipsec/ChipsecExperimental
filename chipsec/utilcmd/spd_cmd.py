@@ -34,7 +34,7 @@ Examples:
 >>> chipsec_util spd write 0xA0 0x0 0xAA
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal import smbus, spd
 from argparse import ArgumentParser
 
@@ -64,7 +64,7 @@ class SPDCommand(BaseCommand):
         parser_write.set_defaults(func=self.spd_write)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def spd_detect(self):
         self.logger.log("[CHIPSEC] Searching for DIMMs with SPD...")

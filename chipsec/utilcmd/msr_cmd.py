@@ -31,8 +31,7 @@ Examples:
 >>> chipsec_util msr 0x8B 0x0 0x0 0
 """
 
-from chipsec.command import BaseCommand
-from chipsec.hal.msr import Msr
+from chipsec.command import BaseCommand, toLoad
 from argparse import ArgumentParser
 
 
@@ -46,7 +45,7 @@ class MSRCommand(BaseCommand):
         parser.add_argument('msr_input2', type=lambda x: int(x, 16), metavar='MSR Value', nargs='?', default=None, help='EDX (hex)')
         parser.add_argument('cpu_id', type=lambda x: int(x, 16), metavar='CPU ID', nargs='?', default=None, help='CPU ID (hex)')
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def run(self):
         if self.msr_input1 is None:

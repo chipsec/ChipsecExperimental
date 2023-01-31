@@ -27,7 +27,7 @@ Usage:
 
 from argparse import ArgumentParser
 import binascii
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.exceptions import HWAccessViolationError
 import struct
 
@@ -42,7 +42,7 @@ class TXTCommand(BaseCommand):
         parser_state = subparsers.add_parser('state')
         parser_state.set_defaults(func=self.txt_state)
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def txt_dump(self):
         # Read TXT Public area as hexdump, with absolute address and skipping zeros

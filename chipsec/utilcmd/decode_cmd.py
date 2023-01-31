@@ -47,7 +47,7 @@ import os
 from argparse import ArgumentParser
 
 from chipsec.file import read_file, write_file
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 
 from chipsec.hal.spi import FLASH_DESCRIPTOR, BIOS
 from chipsec.hal.spi_descriptor import get_spi_flash_descriptor, get_spi_regions, parse_spi_flash_descriptor
@@ -62,7 +62,7 @@ class DecodeCommand(BaseCommand):
         parser.add_argument('_rom', metavar='<rom>', help='file to decode')
         parser.add_argument('_fwtype', metavar='fw_type', nargs='?', help='firmware type', default=None)
         parser.parse_args(self.argv, namespace=self)
-        return False
+        return toLoad.Nil
 
     def decode_types(self):
         self.logger.log("\n<fw_type> should be in [ {} ]\n".format(" | ".join(["{}".format(t) for t in uefi_platform.fw_types])))

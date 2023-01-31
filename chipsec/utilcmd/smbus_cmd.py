@@ -27,7 +27,7 @@ Examples:
 >>> chipsec_util smbus read 0xA0 0x0 0x100
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.logger import print_buffer
 from chipsec.hal.smbus import SMBus
 from argparse import ArgumentParser
@@ -51,7 +51,7 @@ class SMBusCommand(BaseCommand):
         parser_write.set_defaults(func=self.smbus_write)
 
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def smbus_read(self):
         if self.size is not None:

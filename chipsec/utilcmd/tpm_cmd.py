@@ -41,7 +41,7 @@ Examples:
 >>> chipsec_util tpm command continueselftest 0
 """
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal import tpm_eventlog
 from chipsec.hal import tpm
 from chipsec.exceptions import TpmRuntimeError
@@ -69,7 +69,7 @@ class TPMCommand(BaseCommand):
         parser_state.add_argument('locality', type=str, choices=['0', '1', '2', '3', '4'], help='Locality')
         parser_state.set_defaults(func=self.tpm_state)
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def tpm_parse(self):
         with open(self.file, 'rb') as log:

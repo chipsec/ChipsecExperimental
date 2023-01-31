@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 
-
+from enum import Enum
 from chipsec.logger import logger
 from chipsec.testcase import ExitCode
 import traceback
@@ -40,3 +40,20 @@ class BaseCommand:
 
     def requires_driver(self):
         raise NotImplementedError('sub class should overwrite the requires_driver() method')
+
+
+class toLoad(Enum):
+    Nil = 0
+    Config = 1
+    Driver = 2
+    All = 3
+
+    def load_config(self):
+        if self in [self.Config, self.All]:
+            return True
+        return False
+
+    def load_driver(self):
+        if self in [self.Driver, self.All]:
+            return True
+        return False

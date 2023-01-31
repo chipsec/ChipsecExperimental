@@ -29,7 +29,7 @@ Examples:
 """
 
 from argparse import ArgumentParser
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal.smbios import SMBIOS
 from chipsec.logger import print_buffer
 from chipsec.defines import bytestostring
@@ -51,7 +51,7 @@ class smbios_cmd(BaseCommand):
                                 help='Force reading from 32bit structures')
         parser_get.set_defaults(func=self.smbios_get)
         parser.parse_args(self.argv, namespace=self)
-        return True
+        return toLoad.All
 
     def smbios_ep(self):
         self.logger.log('[CHIPSEC] SMBIOS Entry Point Structures')

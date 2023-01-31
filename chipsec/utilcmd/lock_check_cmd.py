@@ -20,7 +20,7 @@
 
 from argparse import ArgumentParser
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 from chipsec.hal.locks import locks, LockResult
 from chipsec.defines import is_set
 
@@ -63,7 +63,7 @@ class LOCKCHECKCommand(BaseCommand):
 
         parser.parse_args(self.argv, namespace=self)
 
-        return True
+        return toLoad.All
 
     def log_key(self):
         self.logger.log("""

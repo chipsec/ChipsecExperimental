@@ -32,7 +32,7 @@ Example:
 from time import time
 from argparse import ArgumentParser
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 import chipsec.result_deltas
 
 
@@ -45,7 +45,7 @@ class DeltasCommand(BaseCommand):
         parser.add_argument('_out_format', metavar='out-format', choices=['JSON', 'XML'], default='JSON', help='output format')
         parser.add_argument('_out_name', metavar='out-name', nargs='?', default=None, help='output filename')
         parser.parse_args(self.argv, namespace=self)
-        return False
+        return toLoad.Nil
 
     def run(self):
         start_time = time()

@@ -37,7 +37,7 @@ Examples:
 
 from argparse import ArgumentParser
 
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 
 from chipsec.logger import print_buffer
 from chipsec.hal.ec import EC
@@ -75,7 +75,7 @@ class ECCommand(BaseCommand):
         parser_index.set_defaults(func=self.index)
 
         parser.parse_args(self.argv, namespace=self)
-        return hasattr(self, 'func')
+        return toLoad.All
 
     def dump(self):
         self.logger.log("[CHIPSEC] EC dump")

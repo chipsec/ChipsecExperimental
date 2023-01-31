@@ -37,7 +37,7 @@ from argparse import ArgumentParser
 
 from chipsec.hal.acpi import ACPI
 from chipsec.exceptions import AcpiRuntimeError
-from chipsec.command import BaseCommand
+from chipsec.command import BaseCommand, toLoad
 
 # ###################################################################
 #
@@ -59,8 +59,8 @@ class ACPICommand(BaseCommand):
         parser_table.set_defaults(func=self.acpi_table)
         parser.parse_args(self.argv, namespace=self)
         if self.func == self.acpi_table and self._file:
-            return False
-        return True
+            return toLoad.Nil
+        return toLoad.All
 
     def acpi_list(self):
         self.logger.log("[CHIPSEC] Enumerating ACPI tables..")
