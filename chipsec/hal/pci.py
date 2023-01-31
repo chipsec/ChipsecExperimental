@@ -36,14 +36,13 @@ usage:
     >>> self.cs.pci.is_enabled( 2, 0, 0 )
 """
 
-import struct
 from collections import namedtuple
 import itertools
-
-from chipsec.defines import MASK_16b, MASK_32b, MASK_64b, BOUNDARY_4KB
+import struct
+from chipsec.defines import MASK_16b, MASK_32b, MASK_64b, BOUNDARY_4KB, is_all_ones
 from chipsec.hal.hal_base import HALBase
-from chipsec.file import write_file
 from chipsec.exceptions import OsHelperError
+from chipsec.file import write_file
 
 #
 # PCI configuration header registers
@@ -200,10 +199,10 @@ class XROM:
         self.header = None
 
 
-class Pci:
+class Pci(HALBase):
 
     def __init__(self, cs):
-        self.cs = cs
+        super(Pci, self).__init__(cs)
 
     #
     # Access to PCI configuration registers
@@ -477,9 +476,9 @@ class Pci:
 
     def enumerate_xroms(self, try_init=False, xrom_dump=False, xrom_addr=None):
         pci_xroms = []
-        logger().log("[pci] enumerating available PCI devices...")
+        self.logger.log("[pci] enumerating available PCI devices...")
         pci_devices = self.enumerate_devices()
-        for (b, d, f, vid, did) in pci_devices:
+        for (b, d, f, vid, did, rid) in pci_devices:
             exists, xrom = self.find_XROM(b, d, f, try_init, xrom_dump, xrom_addr)
             if exists:
                 xrom.vid = vid
