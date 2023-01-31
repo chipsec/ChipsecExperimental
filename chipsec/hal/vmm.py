@@ -29,25 +29,25 @@ VMM specific functionality
 
 import struct
 
-from chipsec.logger import logger
 from chipsec.lib.display_format import pretty_print_hex_buffer
-import chipsec.lib.pcidb
+from chipsec.lib.pcidb import VENDORS, DEVICES
+from chipsec.hal.hal_base import HALBase
+from chipsec.hal.paging import c_extended_page_tables
 
 
-class VMM:
+class VMM(HALBase):
 
     def __init__(self, cs):
-        self.cs = cs
+        super(VMM, self).__init__(cs)
         self.output = ''
         (self.membuf0_va, self.membuf0_pa) = (0, 0)
         (self.membuf1_va, self.membuf1_pa) = (0, 0)
 
-        chipsec.lib.pcidb.VENDORS[VIRTIO_VID] = VIRTIO_VENDOR_NAME
-        chipsec.lib.pcidb.DEVICES[VIRTIO_VID] = VIRTIO_DEVICES
+        VENDORS[VIRTIO_VID] = VIRTIO_VENDOR_NAME
+        DEVICES[VIRTIO_VID] = VIRTIO_DEVICES
 
     def __del__(self):
         if self.membuf0_va != 0:
-            # self.helper.free_physical_mem(self.membuf0_va)
             (self.membuf0_va, self.membuf0_pa) = (0, 0)
             (self.membuf1_va, self.membuf1_pa) = (0, 0)
 
@@ -55,16 +55,14 @@ class VMM:
         (self.membuf0_va, self.membuf0_pa) = self.cs.mem.alloc_physical_mem(0x2000, 0xFFFFFFFFFFFFFFFF)
         (self.membuf1_va, self.membuf1_pa) = (self.membuf0_va + 0x1000, self.membuf0_pa + 0x1000)
         if self.membuf0_va == 0:
-            logger().log("[vmm] Could not allocate memory!")
+            self.logger.log("[vmm] Could not allocate memory!")
             raise Exception("[vmm] Could not allocate memory!")
 
     # Generic hypercall interface
-
     def hypercall(self, rax, rbx, rcx, rdx, rdi, rsi, r8=0, r9=0, r10=0, r11=0, xmm_buffer=0):
         return self.helper.hypercall(rcx, rdx, r8, r9, r10, r11, rax, rbx, rdi, rsi, xmm_buffer)
 
     # Hypervisor-specific hypercall interfaces
-
     def hypercall64_five_args(self, vector, arg1=0, arg2=0, arg3=0, arg4=0, arg5=0):
         return self.helper.hypercall(0, arg3, arg5, 0, arg4, 0, vector, 0, arg1, arg2)
 
@@ -86,17 +84,16 @@ class VMM:
     # Dump EPT page tables at specified physical base (EPT pointer)
     #
     def dump_EPT_page_tables(self, eptp, pt_fname=None):
-        _orig_logname = logger().LOG_FILE_NAME
-        paging_ept = chipsec.hal.paging.c_extended_page_tables(self.cs)
-        if logger().HAL:
-            logger().log('[vmm] dumping EPT paging hierarchy at EPTP 0x{:08X}...'.format(eptp))
+        _orig_logname = self.logger.LOG_FILE_NAME
+        paging_ept = c_extended_page_tables(self.cs)
+        self.logger.log_hal('[vmm] dumping EPT paging hierarchy at EPTP 0x{:08X}...'.format(eptp))
         if pt_fname is None:
             pt_fname = ('ept_{:08X}'.format(eptp))
-        logger().set_log_file(pt_fname)
+        self.logger.set_log_file(pt_fname)
         paging_ept.read_pt_and_show_status(pt_fname, 'EPT', eptp)
-        logger().set_log_file(_orig_logname)
+        self.logger.set_log_file(_orig_logname)
         if paging_ept.failure:
-            logger().log_error('could not dump EPT page tables')
+            self.logger.error('could not dump EPT page tables')
 
 
 ################################################################################
@@ -131,22 +128,21 @@ VIRTIO_DEVICES = {
 
 def get_virtio_devices(devices):
     virtio_devices = []
-    for (b, d, f, vid, did) in devices:
+    for (b, d, f, vid, did, rid) in devices:
         if vid in VIRTIO_VENDORS:
-            virtio_devices.append((b, d, f, vid, did))
+            virtio_devices.append((b, d, f, vid, did, rid))
     return virtio_devices
 
 
-class VirtIO_Device:
-
-    def __init__(self, cs, b, d, f):
-        self.cs = cs
+class VirtIO_Device(HALBase):
+    def __init__(self, cs):
+        super(VirtIO_Device, self).__init__(cs)
         self.bus = b
         self.dev = d
         self.fun = f
 
     def dump_device(self):
-        logger().log("\n[vmm] VirtIO device {:02X}:{:02X}.{:01X}".format(self.bus, self.dev, self.fun))
+        self.logger.log("\n[vmm] VirtIO device {:02X}:{:02X}.{:01X}".format(self.bus, self.dev, self.fun))
         dev_cfg = self.cs.pci.dump_pci_config(self.bus, self.dev, self.fun)
         pretty_print_hex_buffer(dev_cfg)
         bars = self.cs.pci.get_device_bars(self.bus, self.dev, self.fun)
