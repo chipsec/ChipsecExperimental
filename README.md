@@ -1,48 +1,46 @@
-# ChipsecExperimental
+CHIPSEC: Platform Security Assessment Framework
+===============================================
 
-This repository is used by CHIPSEC as a staging/evaluation location for new features that are not yet ready for inclusion in CHIPSEC.
+[![Build Status](https://travis-ci.org/chipsec/chipsec.svg?branch=master)](https://travis-ci.org/chipsec/chipsec)
 
-## Introduction
+CHIPSEC is a framework for analyzing the security of PC platforms including hardware, system firmware (BIOS/UEFI), and platform components. It includes a security test suite, tools for accessing various low level interfaces, and forensic capabilities. It can be run on Windows, Linux, Mac OS X and UEFI shell. Instructions for installing and using CHIPSEC can be found in the [manual](chipsec-manual.pdf).
 
-This repository is where new or experimental features that, are not ready for or may never make it to product 
-integration, can be checked in for evaluation by the CHIPSEC community prior to introducing it into the CHIPSEC main trunk.  This serves several purposes:
+NOTE: This software is for security testing purposes. Use at your own risk. Read [WARNING.txt](chipsec/WARNING.txt) before using.
 
-* Encourage source code to be shared earlier in the development process.
-* Allow source code to be shared that does not yet meet all CHIPSEC required quality criteria.
-* Allow source code to be shared so the CHIPSEC community can help finish and validate new features.
-* Provide a location to hold new features until they are deemed ready for integration.
-* Provide a location to hold new features until there is a natural point in the CHIPSEC release cycle to fully validate the new feature.
+First version of CHIPSEC was released in March 2014:
+[Announcement at CanSecWest 2014](https://cansecwest.com/slides/2014/Platform%20Firmware%20Security%20Assessment%20wCHIPSEC-csw14-final.pdf)
 
-Notes:
+Recent presentation on how to use CHIPSEC to find vulnerabilities in firmware, hypervisors and hardware configuration, explore low level system assets and even detect firmware implants:
+[Exploring Your System Deeper](https://www.slideshare.net/CanSecWest/csw2017-bazhaniuk-exploringyoursystemdeeperupdated)
 
-* Not intended to be used for bug fixes.
-* Not intended to be used for small, simple, or low risk features.
-* Creation of a branch does not guarantee feature integration into CHIPSEC. 
+Release Convention
+------------------
 
-## Process for creating, using, and maintaining experimental efforts
-
-1) ChipsecExperimental discussions can use:
-	1) The existing chipsec mailing list for design/patch/test.
-	1) The Discussion board on [chipsec/chipsec/discussions](https://github.com/chipsec/chipsec/discussions).
-	
-		Use the following style for discussion of a specific feature branch in ChipsecExperimental repo:
-    
-		`[ChipsecExperimental/branch]: Subject`
-
-1) Process to add a new feature to ChipsecExperimental:
-	1) Developer creates feature branch in ChipsecExperimental with `README.md` in root of feature branch with: summary, instructions to run, owners, timeline, and links to related materials.
-	1) Developer is responsible for making sure feature is frequently synced to chipsec/main where possible.
+  * CHIPSEC uses a major.minor.patch release version number
+  * Changes to the arguments or calling conventions will be held for a minor version update
 
 
-1) Process to update sources in feature branch:
-	1) Directly commit changes to feature branch.
-	1) If community review is desired, send an email to the chipsec mailing list<email>: `[ChipsecExperimental/branch PATCH]: Subject`
+Projects That Include CHIPSEC
+-----------------------------
 
-1) Process to promote a ChipsecExperimental branch to CHIPSEC trunk:
-	1) Integrate changes into chipsec fork or branch that is based on chipsec/main.
-	1) Create standard pull request referencing ChipsecExperimental Branch.
-	1) Update ChipsecExperimental Branch's `README.md` and on the first line place: ```# Archived: chipsec/chipsec/pull/[PR#]```
-  
-```
-CHIPSEC Maintiners and Admins reserve the right to clean up/remove stale or unwanted branches at any time.
-```
+ * [Linux UEFI Validation (LUV)](https://01.org/linux-uefi-validation)
+ 
+ * [ArchStrike](https://archstrike.org)
+ 
+ * [BlackArch Linux](https://www.blackarch.org/index.html)
+
+Contact Us
+----------
+
+For any questions or suggestions please contact us at: chipsec@intel.com
+
+Mailing list:
+
+ * [CHIPSEC discussion list on 01.org](https://lists.01.org/hyperkitty/list/chipsec@lists.01.org/)
+
+Twitter:
+
+ * For CHIPSEC release alerts: Follow us at [CHIPSEC Release](https://twitter.com/ChipsecR)
+ * For general CHIPSEC info: Follow [CHIPSEC](https://twitter.com/Chipsec)
+
+For AMD related questions or suggestions please contact Gabriel Kerneis at: Gabriel.Kerneis@ssi.gouv.fr
