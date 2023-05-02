@@ -209,7 +209,7 @@ class access_uefispec(BaseModule):
 
             if rw_variables:
                 self.logger.log('')
-                self.logger.log_unknown('Variables that are read-write (manual investigation is required):')
+                self.logger.log_important('Variables that are read-write (manual investigation is required):')
                 for name in rw_variables:
                     self.logger.log('    {}'.format(name))
 

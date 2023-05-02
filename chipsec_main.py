@@ -95,6 +95,7 @@ def parse_args(argv: Sequence[str]) -> Optional[Dict[str, Any]]:
     adv_options.add_argument('--helper', dest='_driver_exists', help='specify OS Helper', choices=[i for i in oshelper.avail_helpers])
     adv_options.add_argument('-nb', '--no_banner', dest='_show_banner', action='store_false', help="chipsec won't display banner information")
     adv_options.add_argument('--skip_config', dest='_load_config', action='store_false', help='skip configuration and driver loading')
+    adv_options.add_argument('-nl', '--no_logs', dest='_autolog', action='store_false', help="chipsec won't save logs automatically")
 
     par = vars(parser.parse_args(argv))
 
@@ -388,6 +389,7 @@ class ChipsecMain:
         self.logger.setlevel()
         if self.log:
             self.logger.set_log_file(self.log)
+            self.logger.addFileHandlerLogger()
         if self._module_argv and len(self._module_argv) == 1 and self._module_argv[0].count(','):
             self.logger.log("[*] Use of the -a command no longer needs to have arguments concatenated with ','")
             self._module_argv = self._module_argv[0].split(',')
