@@ -47,11 +47,10 @@ import time
 from typing import Dict, Tuple, Optional
 from chipsec.defines import ALIGNED_4KB, BIT0, BIT1, BIT2, BIT5
 from chipsec.file import write_file, read_file
-from chipsec.logger import print_buffer, print_buffer_bytes
+from chipsec.logger import print_buffer_bytes
 from chipsec.hal import hal_base, mmio
-from chipsec.helper import oshelper
 from chipsec.hal.spi_jedec_ids import JEDEC_ID
-from chipsec.exceptions import SpiRuntimeError
+from chipsec.exceptions import SpiRuntimeError, UnimplementedAPIError
 
 SPI_READ_WRITE_MAX_DBC = 64
 SPI_READ_WRITE_DEF_DBC = 4
@@ -198,7 +197,7 @@ class SPI(hal_base.HALBase):
         # speed of MMIO access later on.
         try:
             self.cs.helper.map_io_space(self.rcba_spi_base, SPI_MMIO_BASE_LENGTH, 0)
-        except oshelper.UnimplementedAPIError:
+        except UnimplementedAPIError:
             pass
 
         # Reading definitions of SPI flash controller registers
@@ -577,13 +576,12 @@ class SPI(hal_base.HALBase):
         if filename is not None:
             write_file(filename, buf)
         else:
-            print_buffer(buf, 16)
+            print_buffer_bytes(buf, 16)
         return buf
 
     def write_spi_from_file(self, spi_fla: int, filename: str) -> bool:
         buf = read_file(filename)
-        buf_str = ''.join(struct.unpack('c' * len(buf), buf))
-        return self.write_spi(spi_fla, buf_str)
+        return self.write_spi(spi_fla, buf)
         # return self.write_spi( spi_fla, struct.unpack('B'*len(buf), buf) )
 
     def read_spi(self, spi_fla: int, data_byte_count: int) -> bytes:
@@ -638,7 +636,7 @@ class SPI(hal_base.HALBase):
 
         return buf
 
-    def write_spi(self, spi_fla: int, buf: str) -> bool:
+    def write_spi(self, spi_fla: int, buf: bytes) -> bool:
 
         self.check_hardware_sequencing()
 
@@ -658,7 +656,7 @@ class SPI(hal_base.HALBase):
         for i in range(n):
             if self.logger.UTIL_TRACE or self.logger.HAL:
                 self.logger.log(f'[spi] Writing chunk {i:d} of 0x{dbc:x} bytes to 0x{spi_fla + i * dbc:x}')
-            dword_value = (ord(buf[i * dbc + 3]) << 24) | (ord(buf[i * dbc + 2]) << 16) | (ord(buf[i * dbc + 1]) << 8) | ord(buf[i * dbc])
+            dword_value = ((buf[i * dbc + 3]) << 24) | ((buf[i * dbc + 2]) << 16) | ((buf[i * dbc + 1]) << 8) | (buf[i * dbc])
             if self.logger.HAL:
                 self.logger.log(f'[spi] in FDATA00 = 0x{dword_value:08X}')
             self.spi_reg_write(self.fdata0_off, dword_value)
@@ -671,7 +669,7 @@ class SPI(hal_base.HALBase):
                 self.logger.log(f'[spi] Writing remaining 0x{r:x} bytes to FLA = 0x{spi_fla + n * dbc:x}')
             dword_value = 0
             for j in range(r):
-                dword_value |= (ord(buf[n * dbc + j]) << 8 * j)
+                dword_value |= (buf[n * dbc + j] << 8 * j)
             if self.logger.HAL:
                 self.logger.log(f'[spi] in FDATA00 = 0x{dword_value:08X}')
             self.spi_reg_write(self.fdata0_off, dword_value)

@@ -34,10 +34,6 @@ import platform
 import time
 import traceback
 from collections import OrderedDict
-try:
-    import zipfile
-except ImportError:
-    pass
 
 from typing import Dict, Sequence, Any, Optional
 
@@ -47,7 +43,7 @@ import chipsec.result_deltas
 from chipsec import defines
 from chipsec import module_common
 from chipsec import chipset
-from chipsec.helper import oshelper
+from chipsec.helper.oshelper import helper
 from chipsec.logger import logger
 from chipsec.banner import print_banner, print_banner_properties
 from chipsec.testcase import ExitCode, TestCase, ChipsecResults
@@ -90,12 +86,11 @@ def parse_args(argv: Sequence[str]) -> Optional[Dict[str, Any]]:
     adv_options.add_argument('--failfast', help="fail on any exception and exit (don't mask exceptions)", action='store_true')
     adv_options.add_argument('--no_time', help="don't log timestamps", action='store_true')
     adv_options.add_argument('--deltas', dest='_deltas_file', help='specifies a JSON log file to compute result deltas from')
-    adv_options.add_argument('--record', dest='_to_file', help='run chipsec and clone helper results into JSON file')
-    adv_options.add_argument('--replay', dest='_from_file', help='replay a chipsec run with JSON file')
-    adv_options.add_argument('--helper', dest='_driver_exists', help='specify OS Helper', choices=[i for i in oshelper.avail_helpers])
+    adv_options.add_argument('--helper', dest='_helper', help='specify OS Helper', choices=[i for i in helper().get_available_helpers()])
     adv_options.add_argument('-nb', '--no_banner', dest='_show_banner', action='store_false', help="chipsec won't display banner information")
     adv_options.add_argument('--skip_config', dest='_load_config', action='store_false', help='skip configuration and driver loading')
-    adv_options.add_argument('-nl', '--no_logs', dest='_autolog', action='store_false', help="chipsec won't save logs automatically")
+	adv_options.add_argument('-nl', '--no_logs', dest='_autolog', action='store_false', help="chipsec won't save logs automatically")
+    adv_options.add_argument('-rc', dest='_return_codes', help='Return codes mode', action='store_true')
 
     par = vars(parser.parse_args(argv))
 
@@ -113,9 +108,7 @@ class ChipsecMain:
     def __init__(self, switches, argv):
         self.logger = logger()
         self.CHIPSEC_FOLDER = os.path.abspath(chipsec.file.get_main_dir())
-        self.CHIPSEC_LOADED_AS_EXE = chipsec.file.main_is_frozen()
         self.PYTHON_64_BITS = True if (sys.maxsize > 2**32) else False
-        self.ZIP_MODULES_RE = None
         self.Import_Path = "chipsec.modules."
         self.Modules_Path = os.path.join(self.CHIPSEC_FOLDER, "chipsec", "modules")
         self.Loaded_Modules = []
@@ -125,23 +118,12 @@ class ChipsecMain:
         self.message = defines.get_message()
         self.__dict__.update(switches)
         self.argv = argv
-
-        self.parse_switches()
-
-    def init_cs(self):
         self._cs = chipset.cs()
+        self.parse_switches()
 
     ##################################################################################
     # Module API
     ##################################################################################
-    def f_mod(self, x):
-        return (x.find('__init__') == -1 and self.ZIP_MODULES_RE.match(x))
-
-    def map_modname(self, x):
-        return (x.rpartition('.')[0]).replace('/', '.')
-
-    def map_pass(self, x):
-        return x
 
     def import_module(self, module_path):
         module = None
@@ -355,21 +337,7 @@ class ChipsecMain:
     ##################################################################################
 
     def run_all_modules(self):
-        if self.CHIPSEC_LOADED_AS_EXE:
-            myzip = zipfile.ZipFile(os.path.join(self.CHIPSEC_FOLDER, "library.zip"))
-            re_str = r"^chipsec\/modules\/\w+\.pyc$|^chipsec\/modules\/common\/(\w+\/)*\w+\.pyc$"
-            re_str += r"|^chipsec\/modules\/" + self._cs.code.lower() + r"\/\w+\.pyc$"
-            self.ZIP_MODULES_RE = re.compile(re_str, re.IGNORECASE | re.VERBOSE)
-            zip_modules = []
-            zip_modules.extend(map(self.map_pass, filter(self.f_mod, myzip.namelist())))
-            self.logger.log("Loaded modules from ZIP:")
-            for zmodx in zip_modules:
-                module_name = self.get_module_name(zmodx)
-                mod = chipsec.module.Module(module_name)
-                self.logger.log(mod.get_name())
-                self.Loaded_Modules.append((mod, None))
-        else:
-            self.load_my_modules()
+        self.load_my_modules()
         self.load_user_modules()
 
         return self.run_loaded_modules()
@@ -382,14 +350,12 @@ class ChipsecMain:
             self.logger.HAL = True
         if self.debug:
             self.logger.DEBUG = True
-        if self.vverbose:
-            self.logger.VERBOSE = True
-            self.logger.DEBUG = True
-            self.logger.HAL = True
         self.logger.setlevel()
         if self.log:
             self.logger.set_log_file(self.log)
-            self.logger.addFileHandlerLogger()
+			self.logger.addFileHandlerLogger()
+        if self._return_codes:
+            self.module_common.using_return_codes = True
         if self._module_argv and len(self._module_argv) == 1 and self._module_argv[0].count(','):
             self.logger.log("[*] Use of the -a command no longer needs to have arguments concatenated with ','")
             self._module_argv = self._module_argv[0].split(',')
@@ -397,15 +363,13 @@ class ChipsecMain:
             self.logger.log_warning("Ignoring unsupported platform warning and continue execution.")
             self.logger.log_warning("Most results cannot be trusted.")
             self.logger.log_warning("Unless a platform independent module is being run, do not file issues against this run.")
-        if self._from_file:
-            self._driver_exists = "FileHelper"
 
     def properties(self):
         ret = OrderedDict()
         ret["OS"] = "{} {} {} {}".format(self._cs.helper.os_system, self._cs.helper.os_release,
                                          self._cs.helper.os_version, self._cs.helper.os_machine)
         ret["Python"] = "Python {}".format(platform.python_version())
-        ret["Platform"] = "{}, CPUID: {}, VID: {:04X}, DID: {:04X}, RID: {:02X}".format(self._cs.longname, self._cs.get_cpuid(), self._cs.vid,
+        ret["Platform"] = "{}, CPUID: {}, VID: {:04X}, DID: {:04X}, RID: {:02X}".format(self._cs.longname, self._cs.cpuid, self._cs.vid,
                                                                                         self._cs.did, self._cs.rid)
         if not self._cs.is_atom():
             ret["PCH"] = "{}, VID: {:04X}, DID: {:04X} RID: {:02X}".format(self._cs.pch_longname, self._cs.pch_vid,
@@ -420,8 +384,6 @@ class ChipsecMain:
 
     def main(self) -> int:
 
-        self.init_cs()
-
         if self._show_banner:
             print_banner(self.argv, defines.get_version(), defines.get_message())
 
@@ -430,8 +392,7 @@ class ChipsecMain:
 
         if self._load_config:
             try:
-                self._cs.init(self._platform, self._pch, (not self._no_driver), self._driver_exists,
-                              self._to_file, self._from_file)
+                self._cs.init(self._platform, self._pch, self._helper)
             except UnknownChipsetError as msg:
                 self.logger.log_error("Platform is not supported ({}).".format(str(msg)))
                 if self._unknownPlatform:
@@ -474,11 +435,16 @@ class ChipsecMain:
         else:
             modules_failed = self.run_all_modules()
 
-        self._cs.destroy((not self._no_driver))
+        self._cs.destroy_helper((not self._no_driver))
         del self._cs
         self.logger.disable()
         return modules_failed
 
+def run(cli_cmd: str = '') -> int:
+    cli_cmds = []
+    if cli_cmd:
+        cli_cmds = cli_cmd.strip().split(' ')
+    return main(cli_cmds)
 
 def main(argv: Sequence[str] = sys.argv[1:]) -> int:
     par = parse_args(argv)

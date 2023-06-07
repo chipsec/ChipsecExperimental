@@ -29,10 +29,8 @@ usage:
 
 import struct
 from typing import Dict, List, Optional, Tuple
-from chipsec.logger import logger, print_buffer
-from chipsec.defines import bytestostring
+from chipsec.logger import logger, print_buffer_bytes
 from chipsec.hal import spi
-from binascii import hexlify
 
 SPI_FLASH_DESCRIPTOR_SIGNATURE = struct.pack('=I', 0x0FF0A55A)
 SPI_FLASH_DESCRIPTOR_SIZE = 0x1000
@@ -102,7 +100,7 @@ def parse_spi_flash_descriptor(cs, rom: bytes) -> None:
     fd = rom[fd_off: fd_off + SPI_FLASH_DESCRIPTOR_SIZE]
     fd_sig = struct.unpack_from('=I', fd[0x10:0x14])[0]
 
-    logger().log(f'+ 0x0000 Reserved : 0x{hexlify(fd[0x0:0xF]).upper()}')
+    logger().log(f'+ 0x0000 Reserved : 0x{fd[0x0:0xF].hex().upper()}')
     logger().log(f'+ 0x0010 Signature: 0x{fd_sig:08X}')
 
     #
@@ -222,7 +220,7 @@ def parse_spi_flash_descriptor(cs, rom: bytes) -> None:
     logger().log(s)
     logger().log('--------------------------------------------------------')
     for r in range(nr):
-        s = 'f{r:-2d} {spi.SPI_REGION_NAMES[r]:20s} '
+        s = f'{r:-2d} {spi.SPI_REGION_NAMES[r]:20s} '
         for m in range(nm):
             access_s = ''
             mask = (0x1 << r)
@@ -254,7 +252,7 @@ def parse_spi_flash_descriptor(cs, rom: bytes) -> None:
     logger().log('')
     logger().log(f'+ 0x{0xF00:04X} OEM Section:')
     logger().log('========================================================')
-    print_buffer(bytestostring(fd[0xF00:]))
+    print_buffer_bytes(fd[0xF00:])
 
     logger().log('')
     logger().log('########################################################')

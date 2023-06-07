@@ -31,7 +31,7 @@ usage:
 
 import struct
 import uuid
-from typing import Optional
+from typing import Optional, Tuple
 from chipsec.hal import hal_base
 from chipsec.logger import logger, print_buffer_bytes
 from chipsec.hal.acpi import ACPI
@@ -50,7 +50,7 @@ class Interrupts(hal_base.HALBase):
     def __init__(self, cs):
         super(Interrupts, self).__init__(cs)
 
-    def send_SW_SMI(self, thread_id: int, SMI_code_port_value: int, SMI_data_port_value: int, _rax: int, _rbx: int, _rcx: int, _rdx: int, _rsi: int, _rdi: int) -> Optional[int]:
+    def send_SW_SMI(self, thread_id: int, SMI_code_port_value: int, SMI_data_port_value: int, _rax: int, _rbx: int, _rcx: int, _rdx: int, _rsi: int, _rdi: int) -> Optional[Tuple[int, int, int, int, int, int, int]]:
         SMI_code_data = (SMI_data_port_value << 8 | SMI_code_port_value)
         logger().log_hal(
             f"[intr] Sending SW SMI: code port 0x{SMI_APMC_PORT:02X} <- 0x{SMI_code_port_value:02X}, data port 0x{SMI_APMC_PORT + 1:02X} <- 0x{SMI_data_port_value:02X} (0x{SMI_code_data:04X})")
@@ -95,12 +95,12 @@ class Interrupts(hal_base.HALBase):
         data_hdr = _guid + struct.pack("Q", len(data)) + data
         if not invoc_reg is None:
             # need to write data_hdr to comm buffer
-            tmp_buf = self.cs.helper.write_physical_mem(buf_addr, len(data_hdr), data_hdr)
+            self.cs.helper.write_phys_mem(buf_addr, len(data_hdr), data_hdr)
             # USING GAS need to write buf_addr into invoc_reg
             if invoc_reg.addrSpaceID == 0:
-                self.cs.helper.write_physical_mem(invoc_reg.addr, invoc_reg.accessSize, buf_addr)
+                self.cs.helper.write_phys_mem(invoc_reg.addr, invoc_reg.accessSize, buf_addr)
                 # check for return status
-                ret_buf = self.cs.helper.read_physical_mem(buf_addr, 8)
+                ret_buf = self.cs.helper.read_phys_mem(buf_addr, 8)
             elif invoc_reg.addrSpaceID == 1:
                 self.cs.helper.write_io_port(invoc_reg.addr, invoc_reg.accessSize, buf_addr)
                 # check for return status
@@ -114,13 +114,13 @@ class Interrupts(hal_base.HALBase):
             # Wait for Communication buffer to be empty
             buf = 1
             while not buf == b"\x00\x00":
-                buf = self.cs.helper.read_physical_mem(buf_addr, 2)
+                buf = self.cs.helper.read_phys_mem(buf_addr, 2)
             # write data to commbuffer
-            tmp_buf = self.cs.helper.write_physical_mem(buf_addr, len(data_hdr), data_hdr)
+            self.cs.helper.write_phys_mem(buf_addr, len(data_hdr), data_hdr)
             # call SWSMI
             self.send_SW_SMI(thread_id, smi_num, 0, 0, 0, 0, 0, 0, 0)
             # clear CommBuffer
-            self.cs.helper.write_physical_mem(buf_addr, len(data_hdr), b"\x00" * len(data_hdr))
+            self.cs.helper.write_phys_mem(buf_addr, len(data_hdr), b"\x00" * len(data_hdr))
             return None
 
     # scan phys mem range start-end looking for 'smmc'

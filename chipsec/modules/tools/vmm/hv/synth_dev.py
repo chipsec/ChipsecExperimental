@@ -37,7 +37,6 @@ Note: the fuzzer is incompatible with native VMBus driver (``vmbus.sys``). To us
 import time
 from struct import *
 from random import *
-from binascii import *
 from chipsec.modules.tools.vmm.hv.define import *
 from chipsec.modules.tools.vmm.common import *
 from chipsec.modules.tools.vmm.hv.vmbus import *
@@ -83,7 +82,7 @@ class VMBusDeviceFuzzer(VMBusDiscovery):
         if len(info) == 0:
             return
         for i in self.responses:
-            self.msg('{}{:20}:{:20}  {:4d}'.format('  ' * indent, hexlify(i), hexlify(info[i]['message']), info[i]['count']))
+            self.msg(f'{"  " * indent}{i.hex():20}:{info[i]["message"].hex():20}  {info[i]["count"]:4d}')
             self.print_1(info[i]['next'], indent + 1)
         return
 
@@ -117,7 +116,7 @@ class synth_dev(BaseModule):
             vb.vmbus_request_offers()
 
             if relid not in [value['child_relid'] for value in vb.offer_channels.values()]:
-                vb.fatal('child relid #{:d} has not been found!'.format(relid))
+                vb.fatal(f'child relid #{relid:d} has not been found!')
 
             vb.ringbuffers[relid] = RingBuffer()
             vb.ringbuffers[relid].debug = False
@@ -133,7 +132,7 @@ class synth_dev(BaseModule):
                 vb.vmbus_close(relid)
                 vb.vmbus_teardown_gpadl(relid, vb.ringbuffers[relid].gpadl)
             elif command == 'fuzz':
-                vb.promt = 'DEVICE {:02d}'.format(relid)
+                vb.promt = f'DEVICE {relid:02d}'
                 vb.msg('Fuzzing VMBus devices ...')
                 vb.device_fuzzing(relid)
                 vb.print_statistics()

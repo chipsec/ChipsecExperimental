@@ -34,16 +34,17 @@ import uuid
 import os
 import edk2   # Python 3.6.8 on UEFI
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+if TYPE_CHECKING:
+    from chipsec.library.types import EfiVariableType
 from chipsec.logger import logger
 from chipsec.helper.oshelper import get_tools_path
 from chipsec.helper.basehelper import Helper
+from chipsec.exceptions import UnimplementedAPIError
 
 
 _tools = {
 }
-
-EfiVariableType = Tuple[int, bytes, int, bytes, str, int]
 
 class EfiHelper(Helper):
 
@@ -101,18 +102,22 @@ class EfiHelper(Helper):
     # Physical memory access
     #
 
+    def split_address(self, pa: int) -> Tuple[int, int]:
+        return (pa & 0xFFFFFFFF, (pa >> 32) & 0xFFFFFFFF)
 
-    def read_phys_mem(self, phys_address_hi: int, phys_address_lo: int, length: int) -> bytes:
-        return edk2.readmem(phys_address_lo, phys_address_hi, length)
+    def read_phys_mem(self, phys_address: int, length: int) -> bytes:
+        pa_lo, pa_hi = self.split_address(phys_address)
+        return edk2.readmem(pa_lo, pa_hi, length)
 
-    def write_phys_mem(self, phys_address_hi: int, phys_address_lo: int, length: int, buf: bytes) -> int:
+    def write_phys_mem(self, phys_address: int, length: int, buf: bytes) -> int:
+        pa_lo, pa_hi = self.split_address(phys_address)
         if type(buf) == bytearray:
             buf = bytes(buf)
         if 4 == length:
             dword_value = struct.unpack('I', buf)[0]
-            res = edk2.writemem_dword(phys_address_lo, phys_address_hi, dword_value)
+            res = edk2.writemem_dword(pa_lo, pa_hi, dword_value)
         else:
-            res = edk2.writemem(phys_address_lo, phys_address_hi, buf)
+            res = edk2.writemem(pa_lo, pa_hi, buf)
         return res
 
     def alloc_phys_mem(self, length: int, max_pa: int) -> Tuple[int, int]:
@@ -197,7 +202,7 @@ class EfiHelper(Helper):
     # SMI events
     #
 
-    def send_sw_smi(self, cpu_thread_id: int, SMI_code_data: int, _rax: int, _rbx: int, _rcx: int, _rdx: int, _rsi: int, _rdi: int) -> Optional[int]:
+    def send_sw_smi(self, cpu_thread_id: int, SMI_code_data: int, _rax: int, _rbx: int, _rcx: int, _rdx: int, _rsi: int, _rdi: int) -> None:
         return edk2.swsmi(SMI_code_data, _rax, _rbx, _rcx, _rdx, _rsi, _rdi)
 
     #
@@ -214,33 +219,23 @@ class EfiHelper(Helper):
         return edk2.wrmsr(msr_addr, eax, edx)
 
     def read_cr(self, cpu_thread_id: int, cr_number: int) -> int:
-        if logger().DEBUG:
-            logger().log_error("[helper] read_cr is not supported yet")
-        return 0
+        raise UnimplementedAPIError('read_cr')
 
     def write_cr(self, cpu_thread_id: int, cr_number: int, value: int) -> int:
-        if logger().DEBUG:
-            logger().log_error("[helper] write_cr is not supported yet")
-        return 0
+        raise UnimplementedAPIError('write_cr')
 
     def load_ucode_update(self, cpu_thread_id: int, ucode_update_buf: int) -> bool:
-        if logger().DEBUG:
-            logger().log_error("[helper] load_ucode_update is not supported yet")
-        return False
+        raise UnimplementedAPIError('load_ucode_update')
 
     def get_threads_count(self) -> int:
-        if logger().DEBUG:
-            logger().log_error("EFI Helper hasn't implemented get_threads_count yet")
-        return 0
+        return 1
 
     def cpuid(self, eax: int, ecx: int) -> Tuple[int, int, int, int]:
         (reax, rebx, recx, redx) = edk2.cpuid(eax, ecx)
         return (reax, rebx, recx, redx)
 
     def get_descriptor_table(self, cpu_thread_id: int, desc_table_code: int)-> None:
-        if logger().DEBUG:
-            logger().log_error("EFI helper has not implemented get_descriptor_table yet")
-        return None
+        raise UnimplementedAPIError('get_descriptor_table')
 
     #
     # File system
@@ -250,9 +245,6 @@ class EfiHelper(Helper):
         tool_name = _tools[tool_type] if tool_type in _tools else ''
         tool_path = os.path.join(get_tools_path(), self.os_system.lower())
         return (tool_name, tool_path)
-
-    def getcwd(self) -> str:
-        return os.getcwd()
 
     #
     # EFI Variable API
@@ -276,7 +268,7 @@ class EfiHelper(Helper):
         (_, data, _) = self.get_EFI_variable_full(name, guidstr)
         return data
 
-    def set_EFI_variable(self, name: str, guidstr: str, data: bytes, datasize: Optional[int] = None, attrs: int = 0x7) -> int:
+    def set_EFI_variable(self, name: str, guidstr: str, data: bytes, datasize: Optional[int] = None, attrs: Optional[int] = 0x7) -> int:
 
         if datasize is None:
             datasize = len(data)
@@ -292,10 +284,10 @@ class EfiHelper(Helper):
     def delete_EFI_variable(self, name: str, guid: str) -> int:
         return self.set_EFI_variable(name, guid, bytes(4), 0, 0)
 
-    def list_EFI_variables(self) -> Optional[Dict[str, List[EfiVariableType]]]:
+    def list_EFI_variables(self) -> Optional[Dict[str, List['EfiVariableType']]]:
 
         off = 0
-        buf = list()
+        buf = b''
         hdr = 0
         attr = 0
         var_list = list()
@@ -355,34 +347,38 @@ class EfiHelper(Helper):
     #
 
     def get_ACPI_SDT(self) -> Tuple[None, bool]:
-        if logger().DEBUG:
-            logger().log_error("[helper] ACPI is not supported yet")
-        return (None, False)
+        raise UnimplementedAPIError('get_ACPI_SDT')
 
     #
     # IOSF Message Bus access
     #
 
     def msgbus_send_read_message(self, mcr: int, mcrx: int) -> None:
-        if logger().DEBUG:
-            logger().log_error("[helper] Message Bus is not supported yet")
-        return None
+        raise UnimplementedAPIError('msgbus_send_read_message')
 
     def msgbus_send_write_message(self, mcr: int, mcrx: int, mdr: int) -> None:
-        if logger().DEBUG:
-            logger().log_error("[helper] Message Bus is not supported yet")
-        return None
+        raise UnimplementedAPIError('msgbus_send_write_message')
 
     def msgbus_send_message(self, mcr: int, mcrx: int, mdr: Optional[int] = None) -> None:
-        if logger().DEBUG:
-            logger().log_error("[helper] Message Bus is not supported yet")
-        return None
+        raise UnimplementedAPIError('msgbus_send_message')
 
     def set_affinity(self, value: int) -> None:
-        if logger().DEBUG:
-            logger().log_error('[helper] API set_affinity() is not supported')
-        return None
+        raise UnimplementedAPIError('set_affinity')
 
+    def free_phys_mem(self, physical_address):
+        raise UnimplementedAPIError('free_phys_mem')
+
+    def get_ACPI_table(self, table_name):
+        raise UnimplementedAPIError('get_ACPI_table')
+
+    def get_affinity(self):
+        raise UnimplementedAPIError('get_affinity')
+
+    def hypercall(self, rcx, rdx, r8, r9, r10, r11, rax, rbx, rdi, rsi, xmm_buffer):
+        raise UnimplementedAPIError('hypercall')
+
+    def retpoline_enabled(self) -> bool:
+        return False
 
 def get_helper() -> EfiHelper:
     return EfiHelper()
