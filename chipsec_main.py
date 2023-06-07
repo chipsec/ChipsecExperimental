@@ -89,7 +89,7 @@ def parse_args(argv: Sequence[str]) -> Optional[Dict[str, Any]]:
     adv_options.add_argument('--helper', dest='_helper', help='specify OS Helper', choices=[i for i in helper().get_available_helpers()])
     adv_options.add_argument('-nb', '--no_banner', dest='_show_banner', action='store_false', help="chipsec won't display banner information")
     adv_options.add_argument('--skip_config', dest='_load_config', action='store_false', help='skip configuration and driver loading')
-	adv_options.add_argument('-nl', '--no_logs', dest='_autolog', action='store_false', help="chipsec won't save logs automatically")
+    adv_options.add_argument('-nl', '--no_logs', dest='_autolog', action='store_false', help="chipsec won't save logs automatically")
     adv_options.add_argument('-rc', dest='_return_codes', help='Return codes mode', action='store_true')
 
     par = vars(parser.parse_args(argv))
@@ -353,9 +353,9 @@ class ChipsecMain:
         self.logger.setlevel()
         if self.log:
             self.logger.set_log_file(self.log)
-			self.logger.addFileHandlerLogger()
+            self.logger.addFileHandlerLogger()
         if self._return_codes:
-            self.module_common.using_return_codes = True
+            self._cs.using_return_codes = True
         if self._module_argv and len(self._module_argv) == 1 and self._module_argv[0].count(','):
             self.logger.log("[*] Use of the -a command no longer needs to have arguments concatenated with ','")
             self._module_argv = self._module_argv[0].split(',')
