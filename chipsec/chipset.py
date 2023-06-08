@@ -134,6 +134,8 @@ class Chipset:
         #   self.spi = SPI( self.cs )
         #
 
+        self.using_return_codes = False
+
     ##################################################################################
     #
     # Initialization
