@@ -36,7 +36,7 @@ Notes:
 
 1) Process to update sources in feature branch:
 	1) Directly commit changes to feature branch.
-	1) If community review is desired, send an email to the chipsec mailing list<email>: `[ChipsecExperimental/branch PATCH]: Subject`
+	1) If community review is desired, send a message in the [chipsec discord general channel](https://discord.gg/55pDAp2Kqc): `[ChipsecExperimental/branch PATCH]: <message>` or make a discussion post on [chipsec/chipsec/discussions](https://github.com/chipsec/chipsec/discussions)
 
 1) Process to promote a ChipsecExperimental branch to CHIPSEC trunk:
 	1) Integrate changes into chipsec fork or branch that is based on chipsec/main.
