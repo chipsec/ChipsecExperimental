@@ -1,5 +1,10 @@
 # ChipsecExperimental
 
+```
+‼️This Repository is being archived as it is no longer used.‼️
+Please see github.com/chipsec/chipsec and any dev/* branches for development work.
+```
+
 This repository is used by CHIPSEC as a staging/evaluation location for new features that are not yet ready for inclusion in CHIPSEC.
 
 ## Introduction
